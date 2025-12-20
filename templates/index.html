@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI Career Explorer</title>
+</head>
+<body>
+    <h1>AI Career Explorer MVP</h1>
+
+    <form method="POST">
+        <h3>Stage {{ stage }}</h3>
+
+        <p>{{ question }}</p>
+        <textarea name="user_input" rows="4" cols="60" placeholder="Type here..."></textarea>
+        <button type="submit">Continue</button>
+    </form>
+
+    {% if response %}
+        <h3>You said:</h3>
+        <p>{{ response }}</p>
+    {% endif %}
+</body>
+</html>

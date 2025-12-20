@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI Career Explorer — Summary</title>
+</head>
+<body>
+    <h1>Conversation Summary</h1>
+
+    <p>{{ summary }}</p>
+    <form method="POST" action ="/feedback">
+
+        <br><br><br>
+        <p>Does this summary feel accurate based on how you think and work?</p>
+        <br>
+        <button type="submit" name="feedback" value="yes">Yes</button>
+        <button type="submit" name="feedback" value="somewhat">Somewhat</button>
+        <button type="submit" name="feedback" value="no">No</button>
+
+        <textarea name="feedback_detail" rows="3" cols="60"
+          placeholder="Optional: what feels right or off?"></textarea>
+         <p><small>Your answer helps refine the summary.</small></p>
+    </form>
+    <a href="/reset">Start Over</a>
+</body>
+</html>
