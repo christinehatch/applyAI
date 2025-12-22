@@ -148,3 +148,200 @@ They are not surfaced directly in summaries or used to draw conclusions.
 
 This phase focuses on *responsiveness*, not inference.
 
+##Phase 2 — Completion Checklist
+
+Phase 2: Adaptive Reflection (Rule-Based) is considered complete when the system can:
+
+ - Detect recurring cognitive signals using keyword-based rules
+
+ - Track signal frequency within a single session
+
+ - Escalate follow-up phrasing based on repetition (not single events)
+
+  - Ask at most one reflective follow-up per detection
+
+  - Resume the core conversation flow without disruption
+
+  - Avoid labels, diagnoses, or trait attribution
+
+  - Keep signal logic internal (not exposed directly to the user)
+
+  - Allow the user to validate or challenge the system’s reflection
+
+  - Log feedback for later evaluation and refinement
+Phase 3: Pattern Synthesis & Summary Evolution
+
+Phase 3 extends applyAI from in-the-moment reflection to gentle pattern synthesis.
+
+In this phase, signals detected during the conversation are no longer used only to guide follow-up questions. Instead, they begin to inform how the final summary is shaped and phrased — without introducing labels, diagnoses, or fixed traits.
+
+The system focuses on reflecting recurring tendencies rather than isolated moments.
+
+What Phase 3 introduces
+
+Phase 3 explores how repeated signals can influence summaries in a careful, non-interpretive way.
+
+This phase adds:
+
+Multiple signal types beyond support-seeking (e.g. exploration-first, systems thinking, overwhelm)
+
+Lightweight aggregation of signal frequency across a session
+
+Summary language that reflects patterns rather than single responses
+
+Clear separation between:
+
+What was observed
+
+What is reflected
+
+What remains open-ended
+
+Signals remain internal to the system and are never exposed as scores, labels, or diagnostics.
+
+Design principles
+
+Phase 3 follows strict constraints:
+
+No personality typing
+
+No ranking or scoring of users
+
+No claims about fixed traits
+
+No prescriptive recommendations
+
+Instead, summaries evolve through phrasing such as:
+
+“Across the conversation, moments of uncertainty invited reflection on how you like to regain clarity.”
+
+The goal is recognition, not classification.
+
+What Phase 3 does not include
+
+To preserve clarity and trust, Phase 3 intentionally excludes:
+
+LLM-based interpretation
+
+Persistent user profiles
+
+Cross-session memory
+
+Career or role recommendations
+
+Automated advice generation
+
+Those concerns are reserved for later phases.
+
+Why Phase 3 matters
+
+Phase 3 is the bridge between:
+
+Reactive systems (responding to what was just said)
+
+Reflective systems (helping users notice how patterns recur)
+
+It prepares the groundwork for future AI-assisted reasoning while keeping the system transparent, inspectable, and human-centered.
+#Phase 3: Pattern Synthesis & Reflective Summaries
+
+Phase 3 focuses on synthesizing signals gathered during the conversation into clearer, user-facing reflection — without introducing labeling, diagnosis, or premature conclusions.
+
+In this phase, the system begins to *use signals holistically*, rather than only for moment-to-moment follow-ups.
+
+##Goals
+
+Phase 3 aims to:
+
+- Translate repeated signals into meaningful reflection
+
+- Help users recognize patterns across their responses
+
+- Preserve user agency by avoiding fixed interpretations
+
+- Maintain a non-evaluative, curiosity-driven tone
+
+##What Changes in Phase 3
+
+Unlike Phase 2, where signals only guide *in-the-moment follow-up questions*, Phase 3 introduces *summary-level synthesis.*
+
+The system may:
+
+- Reference recurring themes implicitly (e.g. “uncertainty surfaced multiple times”)
+
+- Acknowledge patterns without naming or scoring them
+
+- Reflect how the user approached problems, not who they are
+
+Signals are still:
+
+- Session-scoped
+
+- Rule-based
+
+- Transparent and inspectable
+
+##Example Summary Additions (Illustrative)
+
+Rather than exposing signal names or counts, summaries may include language like:
+
+- “You often paused to clarify context before moving forward.”
+
+- “Moments of uncertainty invited additional reflection, which helped clarify next steps.”
+
+- “You balanced exploration with a desire for structure when approaching the problem.”
+
+These reflections are *descriptive, not diagnostic.*
+
+##Signals Used
+
+Phase 3 expands beyond a single signal and may incorporate:
+
+- Support-seeking / uncertainty
+
+- Systems-oriented thinking
+
+- Exploration-first approaches
+
+- Overwhelm or friction signals
+
+- Execution-oriented tendencies
+
+Signals are combined only when helpful — absence of a signal is not treated as a deficit.
+
+##What Phase 3 Still Avoids
+
+Phase 3 intentionally does *not* include:
+
+- Personality typing
+
+- Cognitive labels or profiles
+
+- Scoring, ranking, or normalization
+
+- Persistent user storage
+
+- Automated recommendations tied to roles or careers
+
+Those belong in later phases.
+
+##Why This Phase Matters
+
+Phase 3 is the bridge between:
+
+- Reactive adaptivity (Phase 2)
+
+- and meaningful insight (future phases)
+
+It tests whether reflective summaries feel:
+
+- Accurate
+
+- Respectful
+
+- Useful
+
+- Trustworthy
+
+Before any AI-driven inference is introduced.
+
+
