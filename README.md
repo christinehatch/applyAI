@@ -344,4 +344,45 @@ It tests whether reflective summaries feel:
 
 Before any AI-driven inference is introduced.
 
+## Phase 3 — Reflective Signal Synthesis (Implementation)
+This project uses lightweight, rule-based **cognitive signals** to observe *how* a user approaches open-ended problems — without labeling, diagnosing, or prescribing behavior.
 
+### What Phase 3 Adds
+
+Phase 3 introduces a **reflection layer** that:
+
+* Tracks recurring conversational signals (e.g. uncertainty, structure-seeking, exploration-first language)
+* Uses those signals to unlock **observational reflection snippets**
+* Presents reflections as optional mirrors, not conclusions
+
+No signal names, counts, or thresholds are ever shown to the user.
+
+### Design Principles
+
+* **Signals inform language, not identity**
+* **Recurrence is implied, never quantified**
+* **All reflection language is tentative and reversible**
+* **Users can agree, disagree, or ignore reflections**
+
+This phase is intentionally non-advisory.
+It focuses on *pattern awareness*, not guidance or correction.
+
+### Architecture Overview
+
+* `signals.py`
+  Defines signal metadata and pure detection functions.
+  No state mutation or UI logic.
+
+* `reflections.py`
+  Maps internal signal states to reflection snippets using guarded conditions.
+  Includes optional debug output for development only.
+
+* `app.py`
+  Orchestrates conversation flow, signal counting, follow-up prompts, and summary synthesis.
+
+### Phases Completed
+
+* **Phase 3a** — Signal visibility rules and reflection tone guard
+* **Phase 3b** — Reflections refactored into a dedicated module with clean boundaries
+
+Later phases may explore adaptive guidance or AI-generated reflection — without rewriting this foundation.

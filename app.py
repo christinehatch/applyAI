@@ -165,7 +165,16 @@
 # ============================================================
 
 from flask import Flask, render_template, request
-
+from signals import (
+    SUPPORT_SIGNAL,
+    detect_support_signal,
+    detect_systems_signal,
+    detect_exploration_signal
+)
+from reflections import (
+    collect_reflections,
+    generate_base_summary
+)
 app = Flask(__name__, template_folder="templates")
 conversation_state = {
     "stage": 1,
@@ -196,78 +205,9 @@ QUESTIONS = {
     3: "What feels most challenging or uncertain when you think about executing this idea?"
 }
 
-SUPPORT_SIGNAL = {
-    "id": "support_seeking",
-    "keywords": [
-        "help", "guidance", "mentor",
-        "example", "template", "walk me through",
-        "not sure", "don't know", "unsure"
-    ],
-    "questions": [
-        "When you feel unsure, what kind of support helps most—"
-        "examples, a checklist, or someone asking guiding questions?",
-
-        # Escalation (second detection)
-        "I’m noticing uncertainty coming up again — what part of this feels least clear right now?",
-
-        # count >= 3 (plateau)
-        "When this uncertainty shows up, what usually helps it ease or move forward?"
-
-    ],
-    "max_escalation": 3
 
 
-}
-SYSTEMS_SIGNAL = {
-    "id": "systems_thinking",
-    "keywords": [
-        "system", "structure", "flow", "architecture",
-        "components", "relationships", "pipeline",
-        "scope", "framework"
-    ]
-}
 
-EXPLORATION_SIGNAL = {
-    "id": "exploration_first",
-    "keywords": [
-        "explore", "understand", "learn", "research",
-        "figure out", "clarify", "get context",
-        "dig into", "experiment", "look into"
-    ]
-}
-
-REFLECTION_SNIPPETS = {
-    "uncertainty_observed": {
-        "condition": "support_seeking_observed",
-        "text": (
-            "At a few points in the conversation, moments of uncertainty led you "
-            "to pause and look for clarification."
-        )
-    },
-
-    "uncertainty_handling": {
-        "condition": "support_seeking_escalated",
-        "text": (
-            "When things felt unclear, you tended to look for concrete anchors — "
-            "like examples, clearer expectations, or a defined scope — to decide how to move forward."
-        )
-    },
-
-    "structure_orientation": {
-        "condition": "systems_thinking_observed",
-        "text": (
-            "You often approached the problem by breaking it into parts and thinking about "
-            "how those pieces fit together before taking action."
-        )
-    },
-    "exploration_orientation": {
-        "condition": "exploration_first_observed",
-        "text": (
-            "You often took time to explore context and possibilities "
-            "before deciding how to move forward."
-        )
-    }
-}
 FOLLOW_UPS = {
     "systems": "Can you walk through how you'd structure that?",
     "exploration": "What would you want to understand before deciding?",
@@ -291,15 +231,6 @@ def debug_log(title, data=None):
         print(data)
 
 
-def reflection_debug(event, data=None):
-    """
-    Debug-only hook for Phase 3 synthesis.
-    Never shown to users.
-    """
-    print("\n🔎 REFLECTION DEBUG:", event)
-    if data:
-        for k, v in data.items():
-            print(f"  - {k}: {v}")
 
 def insight_log(event, data=None):
     print("\n🧠 INSIGHT:", event)
@@ -308,138 +239,16 @@ def insight_log(event, data=None):
                 print(f"  - {k}: {v}")
 
 
-def detect_support_signal_with_debug(text):
-    text = text.lower()
 
-    matched = [kw for kw in SUPPORT_SIGNAL["keywords"] if kw in text]
-
-    if matched:
-        return True, {
-            "matched_keywords": matched,
-            "reason": "keyword_match"
-        }
-
-    return False, {
-        "matched_keywords": [],
-        "checked_keywords": SUPPORT_SIGNAL["keywords"],
-        "reason": "no_keywords_matched"
-    }
-def detect_systems_signal_with_debug(text):
-    text = text.lower()
-
-    matched = [
-        kw for kw in SYSTEMS_SIGNAL["keywords"]
-        if kw in text
-    ]
-
-    if matched:
-        return True, {
-            "matched_keywords": matched,
-            "reason": "keyword_match"
-        }
-
-    return False, {
-        "matched_keywords": [],
-        "checked_keywords": SYSTEMS_SIGNAL["keywords"],
-        "reason": "no_keywords_matched"
-    }
-def detect_exploration_signal(text):
-    text = text.lower()
-    return any(kw in text for kw in EXPLORATION_SIGNAL["keywords"])
-
-def check_reflection_condition(condition, conversation_state):
-    if condition == "support_seeking_escalated":
-        return conversation_state["signal_escalated"].get("support_seeking", False)
-
-    if condition == "support_seeking_observed":
-        return (
-            conversation_state["signal_counts"].get("support_seeking", 0) >= 2
-            and not conversation_state["signal_escalated"].get("support_seeking", False)
-        )
-
-    if condition == "systems_thinking_observed":
-        return conversation_state["signal_counts"].get("systems_thinking", 0) >= 1
-
-    if condition == "exploration_first_observed":
-        return conversation_state["signal_counts"].get("exploration_first", 0) >= 2
-
-    return False
-
-def collect_reflections(conversation_state):
-    """
-    Collects user-facing reflection snippets based on
-    unlocked conditions. No logic or interpretation lives here.
-    """
-
-    reflections = []
-    unlocked = []
-
-    for key, snippet in REFLECTION_SNIPPETS.items():
-        condition = snippet.get("condition")
-
-        if condition and check_reflection_condition(condition, conversation_state):
-            reflections.append(snippet["text"])
-            unlocked.append({
-                "snippet": key,
-                "condition": condition
-            })
-
-    # Debug-only visibility
-    reflection_debug(
-        "Reflections collected",
-        {
-            "unlocked_snippets": unlocked,
-            "signal_counts": conversation_state["signal_counts"],
-            "signal_escalated": conversation_state["signal_escalated"]
-        }
-    )
-
-    return reflections
 
 
 def generate_summary(responses, conversation_state):
     summary = []
-    SYSTEMS_WORDS = [
-        "feature", "system", "flow", "architecture", "component",
-        "integration", "interaction", "pipeline", "structure"
-    ]
-    SUPPORT_WORDS = [
-        "mentor", "guidance", "feedback", "example",
-        "direction", "help", "support", "walk through"
-    ]
-    EXPLORATION_WORDS = [
-        "explore", "understand", "clarify", "figure out",
-        "learn", "experiment", "research"
-    ]
-    matched_any_pattern = True
 
-    response = responses.get(1, "").lower()
+    # 1. Base heuristic summary (from reflections module)
+    summary.extend(generate_base_summary(responses))
 
-    if any(word in response for word in EXPLORATION_WORDS):
-        summary.append(
-            "You approach new problems by exploring and understanding context before committing to solutions."
-        )
-        matched_any_pattern = False
-
-    response = responses.get(2, "").lower()
-
-    if any(word in response for word in SYSTEMS_WORDS):
-        summary.append(
-            "You tend to think in terms of systems, features, and interactions rather than linear task lists."
-        )
-        matched_any_pattern = False
-
-    response = responses.get(3, "").lower()
-
-    if any(word in response for word in SUPPORT_WORDS):
-        summary.append(
-            "You appear to benefit from external guidance or feedback when moving from ideas into execution."
-        )
-        matched_any_pattern = False
-    if matched_any_pattern:
-        summary.append("Based on your responses, you tend to engage thoughtfully with open-ended problems, even when structure is minimal.")
-
-    # Meta-reflection (no labels, no counts, no signals)
+    # 2. Phase 3 reflective snippets
     reflections = collect_reflections(conversation_state)
     summary.extend(reflections)
 
@@ -452,8 +261,6 @@ def generate_summary(responses, conversation_state):
     })
 
     return " ".join(summary)
-
-
 
 @app.route("/", methods=["GET", "POST"])
 def home():
@@ -488,13 +295,13 @@ def home():
                 conversation_state["responses"][stage] = user_input
 
                 # Passive detection: systems thinking (summary-only)
-                if detect_systems_signal_with_debug(user_input):
+                if detect_systems_signal(user_input):
                     conversation_state["signal_counts"]["systems_thinking"] += 1
                 # Passive detection: exploration-first (summary-only)
                 if detect_exploration_signal(user_input):
                     conversation_state["signal_counts"]["exploration_first"] += 1
 
-                fired, debug_info = detect_support_signal_with_debug(user_input)
+                fired, debug_info = detect_support_signal(user_input)
 
                 if fired:
                     conversation_state["signal_counts"]["support_seeking"] += 1
