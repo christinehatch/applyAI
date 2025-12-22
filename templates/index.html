@@ -9,7 +9,10 @@
     <form method="POST">
         <h3>Stage {{ stage }}</h3>
 
-        <p>{{ question }}</p>
+        <h2>{{ followup if followup else question }}</h2>
+        {% if followup %}
+            <p><em>Quick follow-up</em></p>
+        {% endif %}
         <textarea name="user_input" rows="4" cols="60" placeholder="Type here..."></textarea>
         <button type="submit">Continue</button>
     </form>

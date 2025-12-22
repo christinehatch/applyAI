@@ -121,3 +121,30 @@ Project status
 This repository represents Phase 1: Cognitive Exploration of applyAI.
 
 It is intentionally small, inspectable, and designed to evolve.
+
+---
+
+## Project Status
+
+## Phase 1 MVP — Cognitive Exploration
+
+This repository represents the first phase of applyAI: a minimal, functional prototype designed to explore how conversational prompts and feedback can surface thinking patterns.
+
+The focus is on clarity, intentional constraints, and extensibility — not completeness or scale.
+
+## Phase 2: Adaptive Reflection (Rule-Based)
+**Current phase:** 
+Phase 2 introduces lightweight adaptivity without introducing interpretation or labeling.
+
+The system:
+- Detects recurring cognitive signals using keywords
+- Tracks signal frequency within a session
+- Uses escalation phrasing to reflect recurrence gently
+- Asks at most one follow-up per detection
+- Resumes the core conversation flow cleanly
+
+Signals are used only to guide in-the-moment reflection.
+They are not surfaced directly in summaries or used to draw conclusions.
+
+This phase focuses on *responsiveness*, not inference.
+
