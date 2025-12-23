@@ -109,7 +109,8 @@ This repository documents a phased approach to building reflective AI systems:
 * **Phase 1** — Cognitive Exploration (MVP)
 * **Phase 2** — Adaptive Reflection (Rule-Based)
 * **Phase 3** — Reflective Pattern Synthesis
-* **Phase 4** — Policy Before Capability *(current)*
+* **Phase 4** — Policy Before Capability *(completed)*
+* **Phase 5** — Learning with guardrails(current)
 
 Later phases may explore richer AI involvement — but only within clearly defined ethical and experiential boundaries.
 
@@ -154,3 +155,19 @@ For deeper design rationale, ethical constraints, and future capability sketches
 
 *applyAI is an experiment in building AI systems that help people understand themselves — without being reduced by them.*
 
+---
+
+## What’s Next — Phase 5 (Planned)
+
+Phase 5 introduces **carefully constrained AI involvement** under the policies defined in Phase 4.
+
+This phase focuses on:
+- controlled LLM usage (language assistance only)
+- validating reflective UX with real users
+- expanding prompts without adding inference
+- testing consent, disagreement, and reversibility in practice
+
+No new capabilities are enabled until guardrails are proven.
+
+See:
+- [`PHASE_5_SCOPE.md`](docs/PHASE_5_SCOPE.md)

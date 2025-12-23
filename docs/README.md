@@ -1,5 +1,8 @@
 # applyAI (MVP)
 
+This document serves as the **navigation hub for applyAI’s design phases**,
+linking to detailed documentation for each stage of the project.
+
 applyAI explores how AI can support **self-understanding before career decisions** — by reflecting *how people think*, not telling them who they are.
 
 Instead of starting with resumes, titles, or optimization, applyAI begins with:
@@ -48,6 +51,7 @@ By design.
 - **Phase 2** — Adaptive reflection (rule-based)
 - **Phase 3** — Reflective pattern synthesis *(completed)*
 - **Phase 4** — Policy before capability *(current)*
+- **Phase 5** — Guarded learning & AI integration *(defined, not yet implemented)*
 
 Detailed documentation:
 - [`PHASE_3_REFLECTIVE_SYNTHESIS.md`] (docs/PHASE_3_REFLECTIVE_SYNTHESIS.md)
