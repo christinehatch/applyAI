@@ -11,6 +11,7 @@ def base_request(**overrides):
         "intelligence_mode": IntelligenceMode.NONE,
         "consent_token": None,
         "disallowed_capabilities": ["recommendation", "diagnosis"],
+        "content_type": None,  # 👈 explicitly present
     }
     data.update(overrides)
     return LLMRequest(**data)
@@ -59,7 +60,8 @@ def test_consent_revocation_denies_phase5_afterward():
     # Step 1: Consent is present → request would be allowed by policy
     request_with_consent = base_request(
         intelligence_mode=IntelligenceMode.SHALLOW,
-        consent_token="phase5_session"
+        consent_token="phase5_session",
+        content_type = "question"
     )
 
     response_allowed = boundary.evaluate(request_with_consent)

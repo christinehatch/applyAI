@@ -15,3 +15,6 @@ class LLMRequest:
     intelligence_mode: IntelligenceMode
     consent_token: Optional[str]
     disallowed_capabilities: List[str]
+    content_type: Optional[str] = None # "question" | "summary" | None
+
+
