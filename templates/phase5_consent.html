@@ -1,0 +1,27 @@
+{% if prompt_type == "offer" %}
+<p>
+I can explore this more deeply using AI-generated reasoning, but that would go beyond reflection-only mode.
+</p>
+<form method="post">
+  <button name="phase5_consent" value="yes">Yes — try this</button>
+  <button name="phase5_consent" value="no">No, keep it off</button>
+</form>
+{% endif %}
+
+{% if prompt_type == "limits" %}
+<p>
+I’m currently staying in reflection-only mode.
+</p>
+<p>
+That means I can:
+<ul>
+  <li>reflect patterns already present</li>
+  <li>summarize or rephrase what you’ve shared</li>
+</ul>
+But I can’t:
+<ul>
+  <li>analyze your thinking</li>
+  <li>propose interpretations</li>
+</ul>
+</p>
+{% endif %}

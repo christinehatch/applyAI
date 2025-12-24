@@ -175,7 +175,13 @@ from reflections import (
     collect_reflections,
     generate_base_summary
 )
+from phase5.request import LLMRequest
+from phase5.roles import ParticipantRole, IntelligenceMode
+from phase5.boundary import LLMBoundary
+from phase5.null_adapter import NullLLMAdapter
 app = Flask(__name__, template_folder="templates")
+llm_boundary = LLMBoundary(adapter=NullLLMAdapter())
+
 conversation_state = {
     "stage": 1,
     "responses": {},
@@ -193,7 +199,10 @@ conversation_state = {
     "feedback": {
         "rating": "...",
         "detail": "..."
-    }
+    },
+    "phase5_consent_token": None,
+    "phase5_offer_shown": False
+
 }
 QUESTIONS = {
     1: (
@@ -239,7 +248,34 @@ def insight_log(event, data=None):
                 print(f"  - {k}: {v}")
 
 
+def looks_like_phase5_request(text: str) -> bool:
+    triggers = [
+        "analyze",
+        "analysis",
+        "pattern",
+        "what does this say",
+        "interpret",
+        "reason through",
+        "deeper"
+    ]
+    text_lower = text.lower()
+    return any(t in text_lower for t in triggers)
 
+def should_offer_phase5_consent(user_input, state) -> bool:
+    if state["phase5_consent_token"] is not None:
+        return False
+    if state.get("phase5_offer_shown"):
+        return False
+    if not looks_like_phase5_request(user_input):
+        return False
+    return True
+
+def should_explain_phase5_limits(user_input, state) -> bool:
+    if state["phase5_consent_token"] is not None:
+        return False
+    if not state.get("phase5_offer_shown"):
+        return False
+    return looks_like_phase5_request(user_input)
 
 
 def generate_summary(responses, conversation_state):
@@ -269,6 +305,33 @@ def home():
 
     if request.method == "POST":
         user_input = request.form.get("user_input", "").strip()
+
+        # --- Phase 5 consent interception ---
+        if should_offer_phase5_consent(user_input, conversation_state):
+            conversation_state["phase5_offer_shown"] = True
+
+            return render_template(
+                "phase5_consent.html",
+                prompt_type="offer"
+            )
+
+        if should_explain_phase5_limits(user_input, conversation_state):
+            return render_template(
+                "phase5_consent.html",
+                prompt_type="limits"
+            )
+        # --- end Phase 5 interception ---
+
+        _ = llm_boundary.evaluate(
+            LLMRequest(
+                user_text=user_input,
+                role=ParticipantRole.OBSERVER,
+                intelligence_mode=IntelligenceMode.NONE,
+                consent_token=conversation_state["phase5_consent_token"],
+                disallowed_capabilities=["recommendation", "diagnosis"]
+            )
+        )
+
 
         if user_input:
 
@@ -397,7 +460,7 @@ def feedback():
 
     return render_template("feedback_thanks.html")
 
-
+@app.route("/reset")
 def reset():
     global conversation_state
     conversation_state = {
@@ -417,8 +480,11 @@ def reset():
         "feedback": {
             "rating": "...",
             "detail": "..."
-        }
+        },
+        "phase5_consent_token": None,
+        "phase5_offer_shown": False
     }
+    #return redirect(url_for("home"))
     return "Conversation reset"
 
 if __name__ == "__main__":
