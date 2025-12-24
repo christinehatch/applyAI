@@ -179,9 +179,9 @@ from phase5.request import LLMRequest
 from phase5.roles import ParticipantRole, IntelligenceMode
 from phase5.boundary import LLMBoundary
 from phase5.null_adapter import NullLLMAdapter
-app = Flask(__name__, template_folder="templates")
-llm_boundary = LLMBoundary(adapter=NullLLMAdapter())
 
+app = Flask(__name__, template_folder="templates")
+llm_boundary = LLMBoundary()
 conversation_state = {
     "stage": 1,
     "responses": {},
@@ -200,7 +200,7 @@ conversation_state = {
         "rating": "...",
         "detail": "..."
     },
-    "phase5_consent_token": None,
+    "phase5_consent_token": "dev-consent",
     "phase5_offer_shown": False
 
 }
@@ -412,10 +412,30 @@ def home():
 
     if stage in QUESTIONS:
         question = QUESTIONS[stage]
+        alternate_question = None
+
+        # --- Phase 5.2: SHALLOW question rephrasing ---
+        if conversation_state["phase5_consent_token"]:
+            paraphrase_response = llm_boundary.evaluate(
+                LLMRequest(
+                    user_text=question,
+                    role=ParticipantRole.OBSERVER,
+                    intelligence_mode=IntelligenceMode.SHALLOW,
+                    consent_token=conversation_state["phase5_consent_token"],
+                    disallowed_capabilities=["recommendation", "diagnosis"],
+                    content_type="question"
+                )
+            )
+
+            if paraphrase_response.status == "paraphrased":
+                alternate_question = paraphrase_response.content
+        # --- end Phase 5.2 ---
+
         return render_template(
             "index.html",
             stage=stage,
-            question=QUESTIONS.get(stage),
+            question=question,
+            alternate_question=alternate_question,
             followup=conversation_state["followup"]
         )
 

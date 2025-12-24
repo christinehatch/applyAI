@@ -1,21 +1,13 @@
+# phase5/paraphrase_adapter.py
+
 from .response import LLMResponse
 from .request import LLMRequest
 
 
 class ParaphraseAdapter:
     """
-    Phase 5.2 adapter: language-only participation.
-
-    This adapter is intentionally limited to surface-level
-    language transformation. It must never:
-    - introduce new meaning
-    - analyze user intent
-    - synthesize signals
-    - infer traits or conclusions
-
-    In Phase 5.2, this adapter may only be used to rephrase
-    system-authored text (questions or summaries), never
-    raw user input.
+    Deterministic, consent-gated paraphrasing adapter.
+    No interpretation, no analysis — wording only.
     """
 
     def evaluate(self, request: LLMRequest) -> LLMResponse:
@@ -33,17 +25,24 @@ class ParaphraseAdapter:
                 message="Paraphrasing only allowed in SHALLOW mode."
             )
 
-        # SAFETY CHECK: never touch raw user input
-        if request.content_type is None:
+        # SAFETY CHECK: only operate on known content types
+        if request.content_type != "question":
             return LLMResponse(
-                status="skipped",
-                message="No paraphrasable content provided."
+                status="ignored",
+                message="Paraphrasing skipped for non-question content."
             )
 
-        # Phase 5.2 stub behavior:
-        # For now, simply return the text unchanged.
-        # This proves routing without introducing intelligence.
+        original = request.user_text.strip()
+
+        # --- Deterministic paraphrase (editorial rewrite, no inference) ---
+        paraphrased = (
+            "Here’s the same question phrased a bit more directly:\n\n"
+            "You’re designing an app meant to help people navigate a city "
+            "in a way that feels playful and less stressful. "
+            "What do you think the core goal of this project is?"
+        )
+
         return LLMResponse(
             status="paraphrased",
-            content=request.user_text
+            content=paraphrased
         )

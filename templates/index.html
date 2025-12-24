@@ -10,10 +10,22 @@
         <h3>Stage {{ stage }}</h3>
 
         <h2>{{ followup if followup else question }}</h2>
+
+        {% if not followup and alternate_question %}
+        <div class="phase5-alt-question">
+            <p><em>Another way to phrase this question:</em></p>
+            <p>{{ alternate_question }}</p>
+        </div>
+        {% endif %}
+
         {% if followup %}
             <p><em>Quick follow-up</em></p>
         {% endif %}
-        <textarea name="user_input" rows="4" cols="60" placeholder="Type here..."></textarea>
+
+        <textarea name="user_input"
+                  rows="4"
+                  cols="60"
+                  placeholder="Type here..."></textarea>
         <button type="submit">Continue</button>
     </form>
 
