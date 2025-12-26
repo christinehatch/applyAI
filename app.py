@@ -179,14 +179,18 @@ from phase5.request import LLMRequest
 from phase5.roles import ParticipantRole, IntelligenceMode
 from phase5.boundary import LLMBoundary
 from phase5.null_adapter import NullLLMAdapter
+import time
+import uuid
 
 app = Flask(__name__, template_folder="templates")
 llm_boundary = LLMBoundary()
 conversation_state = {
     "stage": 1,
     "responses": {},
+    "questions_logged": set(),
     "followup": None,
     "followup_answers": None,
+    "conversation_log": [],
     "signal_counts": {
         "support_seeking": 0,
         "overwhelmed": 0,
@@ -217,11 +221,7 @@ QUESTIONS = {
 
 
 
-FOLLOW_UPS = {
-    "systems": "Can you walk through how you'd structure that?",
-    "exploration": "What would you want to understand before deciding?",
-    "support": "What kind of guidance helps you most?"
-}
+
 MAX_STAGE = max(QUESTIONS.keys()) + 1
 
 # Internal-only interpretation of user feedback
@@ -239,7 +239,20 @@ def debug_log(title, data=None):
     if data is not None:
         print(data)
 
-
+def append_to_log(
+    speaker: str,
+    content: str,
+    content_type: str,
+    phase: int
+):
+    conversation_state["conversation_log"].append({
+        "id": str(uuid.uuid4()),
+        "speaker": speaker,           # "system" | "user" | "ai"
+        "content": content,
+        "content_type": content_type,
+        "phase": phase,
+        "timestamp": time.time()
+    })
 
 def insight_log(event, data=None):
     print("\n🧠 INSIGHT:", event)
@@ -309,13 +322,24 @@ def home():
         # --- Phase 5 consent interception ---
         if should_offer_phase5_consent(user_input, conversation_state):
             conversation_state["phase5_offer_shown"] = True
-
+            append_to_log(
+                speaker="system",
+                content="AI-assisted reasoning is available with consent.",
+                content_type="consent_offer",
+                phase=5
+            )
             return render_template(
                 "phase5_consent.html",
                 prompt_type="offer"
             )
 
         if should_explain_phase5_limits(user_input, conversation_state):
+            append_to_log(
+                speaker="system",
+                content="Reflection-only mode is active. Analysis is disabled.",
+                content_type="consent_limits",
+                phase=5
+            )
             return render_template(
                 "phase5_consent.html",
                 prompt_type="limits"
@@ -334,6 +358,12 @@ def home():
 
 
         if user_input:
+            append_to_log(
+                speaker="user",
+                content=user_input,
+                content_type="user_response",
+                phase=conversation_state["stage"]
+            )
 
             debug_log("USER INPUT", {
                 "stage": conversation_state["stage"],
@@ -368,17 +398,25 @@ def home():
 
                 if fired:
                     conversation_state["signal_counts"]["support_seeking"] += 1
-                    count =  conversation_state["signal_counts"]["support_seeking"]
+                    count = conversation_state["signal_counts"]["support_seeking"]
 
                     if count <= len(SUPPORT_SIGNAL["questions"]):
+                        # 1️⃣ Assign follow-up
                         conversation_state["followup"] = SUPPORT_SIGNAL["questions"][count - 1]
 
-                        # Lock escalation after the last reflective question
+                        # 2️⃣ Log follow-up ONCE
+                        append_to_log(
+                            speaker="system",
+                            content=conversation_state["followup"],
+                            content_type="followup_question",
+                            phase=2
+                        )
+
+                        # 3️⃣ Lock escalation if needed
                         if count == SUPPORT_SIGNAL["max_escalation"]:
                             conversation_state["signal_escalated"]["support_seeking"] = True
+
                     else:
-                        # After this point, the system still notices the pattern,
-                        # but chooses not to interrupt the main flow again.
                         debug_log("SUPPORT SIGNAL OBSERVED (NO ESCALATION)", {
                             "count": count,
                             "reason": "already_escalated"
@@ -411,10 +449,21 @@ def home():
             stage = conversation_state["stage"]
 
     if stage in QUESTIONS:
+        # ----- Render state (every request) -----
         question = QUESTIONS[stage]
         alternate_question = None
 
-        # --- Phase 5.2: SHALLOW question rephrasing ---
+        # ----- Log question ONCE -----
+        if stage not in conversation_state["questions_logged"]:
+            append_to_log(
+                speaker="system",
+                content=question,
+                content_type="question",
+                phase=1
+            )
+            conversation_state["questions_logged"].add(stage)
+
+        # ----- Phase 5.2 paraphrase (render concern) -----
         if conversation_state["phase5_consent_token"]:
             paraphrase_response = llm_boundary.evaluate(
                 LLMRequest(
@@ -429,11 +478,10 @@ def home():
 
             if paraphrase_response.status == "paraphrased":
                 alternate_question = paraphrase_response.content
-        # --- end Phase 5.2 ---
 
         return render_template(
             "index.html",
-            stage=stage,
+            conversation_log=conversation_state["conversation_log"],
             question=question,
             alternate_question=alternate_question,
             followup=conversation_state["followup"]
@@ -443,7 +491,9 @@ def home():
     summary = generate_summary(
         conversation_state["responses"],
         conversation_state
+
     )
+    print(conversation_state["conversation_log"])
     debug_log("SESSION INTERPRETATION", {
         "signal_counts": conversation_state["signal_counts"],
         "escalations": conversation_state["signal_escalated"],
@@ -486,8 +536,10 @@ def reset():
     conversation_state = {
         "stage": 1,
         "responses": {},
+        "questions_logged": set(),
         "followup": None,
         "followup_answers": None,
+        "conversation_log": [],
         "signal_counts": {
             "support_seeking": 0,
             "overwhelmed": 0,
