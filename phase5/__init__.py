@@ -7,3 +7,4 @@ for optional AI participation.
 No intelligence is enabled by default.
 All participation is consent-based and reversible.
 """
+

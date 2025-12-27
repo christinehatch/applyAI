@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 
 from .roles import ParticipantRole, IntelligenceMode
 
@@ -16,5 +16,5 @@ class LLMRequest:
     consent_token: Optional[str]
     disallowed_capabilities: List[str]
     content_type: Optional[str] = None # "question" | "summary" | None
-
+    phase_context: Optional[Dict[str, Any]] = None  # ✅ FIXED
 

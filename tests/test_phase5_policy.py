@@ -20,6 +20,16 @@ def base_request(**overrides):
     data.update(overrides)
     return LLMRequest(**data)
 
+def test_deliberative_alias_behaves_like_bounded():
+    request = base_request(
+        intelligence_mode=IntelligenceMode.DELIBERATIVE,
+        consent_token=None
+    )
+
+    allowed, reason = validate_llm_request(request)
+
+    assert allowed is False
+    assert "consent" in reason.lower()
 
 def test_none_mode_does_not_require_consent():
     request = base_request(
@@ -45,9 +55,9 @@ def test_shallow_mode_without_consent_is_denied():
     assert "consent" in reason.lower()
 
 
-def test_deliberative_mode_without_consent_is_denied():
+def test_bounded_mode_without_consent_is_denied():
     request = base_request(
-        intelligence_mode=IntelligenceMode.DELIBERATIVE,
+        intelligence_mode=IntelligenceMode.BOUNDED,
         consent_token=None
     )
 
@@ -55,7 +65,6 @@ def test_deliberative_mode_without_consent_is_denied():
 
     assert allowed is False
     assert "consent" in reason.lower()
-
 
 def test_missing_recommendation_block_is_denied():
     request = base_request(
@@ -81,3 +90,16 @@ def test_valid_shallow_request_is_allowed():
 
     assert allowed is True
     assert reason is None
+
+def test_valid_bounded_request_with_phase_context_is_allowed():
+    request = base_request(
+        intelligence_mode=IntelligenceMode.BOUNDED,
+        consent_token="user-consented",
+        phase_context={
+            "phase3_complete": True,
+            "stage": "post_summary"
+        }
+    )
+
+    allowed, reason = validate_llm_request(request)
+    assert allowed is True

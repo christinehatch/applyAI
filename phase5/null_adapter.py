@@ -9,6 +9,6 @@ class NullLLMAdapter:
 
     def evaluate(self, request):
         return LLMResponse(
-            status="no_intelligence",
-            message="LLM participation is disabled in this build."
+            status="ignored",
+            content=None
         )

@@ -18,4 +18,7 @@ class IntelligenceMode(Enum):
     """
     NONE = "none"
     SHALLOW = "shallow"
-    DELIBERATIVE = "deliberative"
+    BOUNDED = "bounded"
+
+    # optional backwards-compatible alias
+    DELIBERATIVE = "bounded"
