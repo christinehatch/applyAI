@@ -54,7 +54,9 @@ class LLMBoundary:
             "what does this suggest",
             "possible interpretations",
             "help me understand what this means",
+            "reflect on",
         ]
 
         lowered = text.lower()
         return any(trigger in lowered for trigger in triggers)
+
