@@ -1,3 +1,5 @@
+from sqlite3 import adapters
+
 from .policy import validate_llm_request
 from .response import LLMResponse
 from .null_adapter import NullLLMAdapter
@@ -14,8 +16,8 @@ class LLMBoundary:
     and if so, which adapter is permitted.
     """
 
-    def __init__(self):
-        self.null_adapter = NullLLMAdapter()
+    def __init__(self, adapter=None):
+        self.null_adapter = adapter or NullLLMAdapter()
         self.paraphrase_adapter = ParaphraseAdapter()
         self.bounded_adapter = BoundedInterpretationAdapter()
 
@@ -28,9 +30,10 @@ class LLMBoundary:
         # --- Phase 5.3 explicit request detection ---
         if request.intelligence_mode == IntelligenceMode.BOUNDED:
             if not self.is_explicit_interpretation_request(request.user_text):
-                # Silent refusal — do NOT explain, do NOT escalate
-                return self.null_adapter.evaluate(request)
-
+                return LLMResponse(
+                    status="ignored",
+                    content=None
+                )
             return self.bounded_adapter.evaluate(request)
 
         # --- Phase 5.2 ---

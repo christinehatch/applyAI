@@ -7,11 +7,16 @@ def validate_llm_request(request):
     Returns (allowed: bool, reason: Optional[str]).
     """
 
+    # --- Consent gating ---
+    if request.intelligence_mode != IntelligenceMode.NONE:
+        if not request.consent_token:
+            return False, "Missing explicit user consent"
+
+        if "recommendation" not in request.disallowed_capabilities:
+            return False, "Recommendations must be explicitly disallowed"
+
     # --- Phase ordering enforcement (HARD BLOCK) ---
-    if request.intelligence_mode in (
-        IntelligenceMode.BOUNDED,
-        IntelligenceMode.DELIBERATIVE,
-    ):
+    if request.intelligence_mode  == IntelligenceMode.BOUNDED:
         phase_context = request.phase_context
 
         if not phase_context:
@@ -22,13 +27,5 @@ def validate_llm_request(request):
 
         if phase_context.get("stage") != "post_summary":
             return False, "Phase 5.3 only allowed after summary"
-
-    # --- Consent gating ---
-    if request.intelligence_mode != IntelligenceMode.NONE:
-        if not request.consent_token:
-            return False, "Missing explicit user consent"
-
-        if "recommendation" not in request.disallowed_capabilities:
-            return False, "Recommendations must be explicitly disallowed"
 
     return True, None

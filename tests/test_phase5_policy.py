@@ -20,17 +20,6 @@ def base_request(**overrides):
     data.update(overrides)
     return LLMRequest(**data)
 
-def test_deliberative_alias_behaves_like_bounded():
-    request = base_request(
-        intelligence_mode=IntelligenceMode.DELIBERATIVE,
-        consent_token=None
-    )
-
-    allowed, reason = validate_llm_request(request)
-
-    assert allowed is False
-    assert "consent" in reason.lower()
-
 def test_none_mode_does_not_require_consent():
     request = base_request(
         intelligence_mode=IntelligenceMode.NONE,

@@ -9,6 +9,6 @@ class NullLLMAdapter:
 
     def evaluate(self, request):
         return LLMResponse(
-            status="ignored",
+            status="no_intelligence",
             content=None
         )
