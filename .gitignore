@@ -14,3 +14,9 @@ __pycache__/
 
 # pytest
 .pytest_cache/
+
+# local telemetry (never commit)
+logs/
+
+# user memory 
+memory/owners/

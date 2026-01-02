@@ -1,154 +1,167 @@
-# Phase 5.4 — Longitudinal Awareness Checklist
+# Phase 5.4 — Longitudinal Awareness Checklist (Implementation-Tracked)
 
-> This checklist defines the full scope and completion criteria for Phase 5.4.
-> Anything not explicitly listed here is **out of scope** and must not be implemented
-> until Phase 5.4 is complete and hardened.
+> Core question: **Can insight persist without identity being imposed?**
 
----
-
-## Phase 5.4 Core Question
-
-> **Can insight persist without identity being imposed?**
-
-If any item below is unchecked, Phase 5.4 is not complete.
+**Status meanings**
+- ✅ Implemented + tested  
+- 🟡 Partially implemented (core primitive exists, not integrated into product flow)  
+- ⛔ Not implemented  
 
 ---
 
-## 1. Entry & Gating
+## 0) Current Status Snapshot
 
-- [ ] Phase 5.4 is **opt-in only**
-- [ ] Consent is **separate** from Phase 5.3 (no shared token)
-- [ ] Phase ordering enforced (only after Phase 3 / Phase 5.3 loops complete)
-- [ ] No memory logic reachable without explicit user action
-- [ ] No automatic upgrades into memory mode
+- [x] ✅ Phase 5.4 **memory primitives exist** (schema, store, proposal workflow, selection builder).
+- [ ] ⛔ Phase 5.4 **is not integrated** into runtime UI/flow yet (no routes, no templates, no gating).
+- [x] ✅ Phase 5.4 has dev-only file-backed persistence (JSON per owner_id)
+- [x] 🟡 Stable anonymous owner_id exists (cookie-based; no login).
 
-**Fail condition:** memory happens implicitly or by default.
-
----
-
-## 2. Memory Proposal Rules
-
-- [ ] Memory is **proposed**, never written automatically
-- [ ] Proposal occurs immediately after a concrete artifact:
-  - [ ] Phase 3 reflection, or
-  - [ ] Phase 5.3 interpretation + resonance choice
-- [ ] Each memory item is shown **verbatim** before approval
-- [ ] User can **edit**, **approve**, or **decline** each item
-- [ ] Declining has **no side effects**
-
-**Fail condition:** the system stores something the user never saw or approved.
+**Evidence:** `phase5/memory.py`, `tests/test_phase5_4_memory.py`
 
 ---
 
-## 3. Memory Content Constraints (Critical)
+## 1) Entry & Risk Gating (High-Risk Surface)
 
-- [ ] Memory phrasing is **non-identity-locking**
-  - Allowed: “has found it useful to…”
-  - Disallowed: “is the kind of person who…”
-- [ ] No clinical or diagnostic language
-- [ ] No inferred traits
-- [ ] No hidden scores, signals, or classifications
-- [ ] Memory represents **user-endorsed material**, not system conclusions
+- [ ] ⛔ Phase 5.4 is **opt-in only** (separate explicit action from user).
+- [ ] ⛔ Consent is **separate from Phase 5.3** (no shared tokens; no accidental upgrade).
+- [ ] ⛔ Phase ordering enforced:
+  - [ ] ⛔ Memory proposals only happen after Phase 3 reflection and/or Phase 5.3 resonance loop completes.
+- [ ] ⛔ No memory logic reachable without explicit user action (no implicit “helpful remembering”).
+- [ ] ⛔ No automatic upgrades into memory mode.
 
-**Fail condition:** memory reads like a personality label.
-
----
-
-## 4. Memory Ledger (User Visibility)
-
-- [ ] User can view **all stored memory items**
-- [ ] Each item displays:
-  - [ ] Exact wording
-  - [ ] Timestamp
-  - [ ] Source (reflection / interpretation)
-- [ ] User can delete any item at any time
-- [ ] Deletion is immediate and final from the user’s perspective
-
-**Fail condition:** opaque or “ghost” memory.
+**Notes**
+- Right now: primitives exist, but nothing is wired into runtime so this gating is not yet implemented.
 
 ---
 
-## 5. Forgetting Guarantees
+## 2) Memory Object Model (Minimum Schema)
 
-- [ ] Forget action removes item from:
-  - [ ] Memory ledger
-  - [ ] Retrieval index
-  - [ ] Any future prompt context
-- [ ] Forgotten items are never reintroduced
-- [ ] System does not argue against forgetting
+- [x] ✅ `MemoryItem` exists with required fields (id, owner_id, text, kind, source, timestamps, status).
+- [x] ✅ `MemoryProposal` exists with proposal workflow fields and decision states.
+- [x] ✅ `MemorySource` exists (provenance).
+- [x] ✅ `SelectedMemoryContext` exists (ephemeral retrieval container).
+- [x] ✅ `MemoryKind` allowlist exists: **PREFERENCE / CONSTRAINT / GOAL / SELF_OBSERVATION**.
 
-**Fail condition:** system recalls deleted information.
-
----
-
-## 6. Retrieval & Use Constraints
-
-- [ ] Memory is **never auto-consumed**
-- [ ] Memory is only used when the user explicitly selects it
-- [ ] Any memory usage is attributed:
-  - “Using the items you selected…”
-- [ ] Memory does **not** affect:
-  - [ ] signal detection
-  - [ ] interpretation thresholds
-  - [ ] reflection phrasing
-  - [ ] follow-up question logic
-
-**Fail condition:** memory subtly alters behavior without user action.
+**Evidence:** `phase5/memory.py`
 
 ---
 
-## 7. No Application Leakage (Hard Boundary)
+## 3) Proposal-Before-Write (Core Ethical Mechanism)
 
-- [ ] No project suggestions
-- [ ] No job roles
-- [ ] No career framing
-- [ ] No planning or optimization language
-- [ ] No “next steps” beyond memory management
+- [x] ✅ Proposal does **not** create stored memory.
+- [x] ✅ Approval creates a `MemoryItem` from **final_text** only.
+- [x] ✅ Decline creates **no** memory item.
+- [x] ✅ Declined proposals cannot later be approved (state transition blocked).
 
-**Fail condition:** anything that resembles Phase 6 functionality.
-
----
-
-## 8. Emotional & Epistemic Safety
-
-- [ ] System reinforces that memory is optional
-- [ ] System reinforces that memory ≠ identity
-- [ ] User disagreement is always valid
-- [ ] No pressure to persist insight
-
-**Fail condition:** memory feels like a commitment or definition.
+**Evidence:** `tests/test_phase5_4_memory.py::test_proposal_before_write...`, `...decline_has_no_side_effects...`
 
 ---
 
-## 9. Test Coverage
+## 4) Mechanical Content Constraints (Identity / Clinical / Authority Blocks)
 
-- [ ] Tests for:
-  - [ ] consent gating
-  - [ ] proposal-before-write
-  - [ ] identity-locking phrase rejection
-  - [ ] deletion guarantees
-- [ ] Tests pass with memory enabled and disabled
-- [ ] Phase 5.3 tests remain unchanged and passing
+- [x] ✅ Memory text validator exists and runs on approval (storage-time).
+- [x] ✅ Blocks identity-locking language.
+- [x] ✅ Blocks clinical/diagnostic terms.
+- [x] ✅ Blocks authoritative/prescriptive phrasing.
 
-**Fail condition:** Phase 5.4 breaks Phase 5.3 guarantees.
+**Evidence:** `validate_memory_text()` + `approve()` calls it; test: `test_validator_blocks_identity_clinical_and_authoritative_language`
 
 ---
 
-## 10. Final Phase 5.4 Invariant
+## 5) Forgetting Guarantees (Non-Use)
 
-If this sentence is ever false, Phase 5.4 is broken:
+- [x] ✅ Delete sets item status to `"deleted"` and timestamps (idempotent).
+- [x] ✅ Deleted items do not appear in ledger list (`store.list()` returns active only).
+- [x] ✅ Deleted items persist as deleted and are not reloaded as active
+
+**Evidence:** `store.delete()` + `store.list()` + selection builder behavior; test: `test_delete_means_non_use...`
+
+**Missing product behaviors**
+- [ ] ⛔ User-facing “Forget” UI and routes.
+- [ ] ⛔ Persistence-layer delete (once persistence exists).
+
+---
+
+## 6) Retrieval & Use Constraints (No Auto-Consumption)
+
+- [x] ✅ Selection context builder requires explicit selected IDs (no implicit recall).
+- [x] ✅ If selection is empty, context is empty and has no attribution line.
+- [x] ✅ Attribution line appears only when memory is actually used.
+
+**Evidence:** `MemorySelectionContextBuilder.build()`; test: `test_empty_selection_does_not_auto_consume_memory...`
+
+**Missing product behaviors**
+- [ ] ⛔ A UI that lets the user select memory items.
+- [ ] ⛔ A boundary in Phase 5.3 / prompt-building that injects only selected memory + attribution.
+
+---
+
+## 7) Ownership Isolation (Owner ID Boundary)
+
+- [x] ✅ All memory objects include `owner_id` and store is keyed by owner.
+- [x] ✅ Owner ID exists in the product/runtime (stable per user across sessions).
+- [ ] 🟡 Ownership isolation enforced structurally (per-owner directories)
+- [ ] ⛔ No adversarial cross-owner tests yet
+**Evidence (partial):** types include `owner_id`, store is per-owner.  
+**Missing:** real `owner_id` source + persistence-level enforcement.
+
+---
+
+## 8) Memory Ledger (User-Visible)
+
+- [ ] ⛔ User can view all stored memory items.
+- [ ] ⛔ Ledger shows exact wording (verbatim), created_at, kind, source.
+- [ ] ⛔ Ledger supports delete/forget.
+- [ ] ⛔ Ledger supports “show me what you remember” as a first-class view.
+
+**Note:** The store can list items already; the UI layer is missing.
+
+---
+
+## 9) Persistence Layer (Required for “Longitudinal”)
+
+- [x] ✅ Persistence location chosen (dev-only, file-backed, repo-local)
+- [x] ✅ File-backed storage backend implemented (JSON per owner_id)
+- [x] ✅ Persistence respects ownership boundaries
+- [x] ✅ Persistence respects deletion (non-use)
+- [ ] ⛔ Migration strategy documented (even if trivial v0->v1).
+
+---
+
+## 10) No Application Leakage (Hard Boundary)
+
+- [x] ✅ Phase 5.4 primitives contain no career planning / project suggestion logic.
+- [ ] ⛔ Integration must not introduce:
+  - [ ] ⛔ project suggestions
+  - [ ] ⛔ job targeting
+  - [ ] ⛔ resume language
+  - [ ] ⛔ planning/optimization language
+
+**Rule:** Memory management only in Phase 5.4.
+
+---
+
+## 11) Test Coverage (What exists vs what’s missing)
+
+**Implemented tests**
+- [x] ✅ File-backed persistence sanity test (manual terminal verification)
+- [x] ✅ Proposal-before-write
+- [x] ✅ Decline-no-side-effects
+- [x] ✅ Delete-means-non-use
+- [x] ✅ Validator enforcement
+- [x] ✅ No auto-consumption on empty selection
+
+**Missing tests (integration-level)**
+- [ ] ⛔ Opt-in gating / consent separation from Phase 5.3
+- [ ] ⛔ Phase ordering (memory proposals only after reflection/interpretation loop)
+- [ ] ⛔ Persistence backend tests (create/list/delete across restarts)
+- [ ] ⛔ Cross-owner isolation tests (cannot read/delete other owner’s items)
+- [ ] ⛔ UI selection → prompt context injection + attribution appears when used
+
+---
+
+## 12) Final Phase 5.4 Invariant
+
+- [x] ✅ Encoded into design + enforced mechanically at storage-time:
 
 > **“The system can remember what the user approved, without deciding who the user is.”**
-
----
-
-## Implementation Reminder
-
-Before touching Phase 6:
-
-- Phase 5.4 must be fully implemented, tested, and hardened
-- Memory must be safe, visible, and revocable
-- No applied or career logic should exist behind feature flags
-
-This checklist exists to prevent accidental scope creep while building Phase 5.4.
-

@@ -253,5 +253,5 @@ class MemorySelectionContextBuilder:
         return SelectedMemoryContext(
             selected_memory_ids=list(selected_memory_ids),
             resolved_texts=resolved,
-            attribution_line="Using the items you selected…",
+            attribution_line=("Using the items you selected…" if resolved else ""),
         )

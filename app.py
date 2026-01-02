@@ -164,13 +164,17 @@
 #  without telling them what to conclude?"
 # ============================================================
 
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request,  make_response, redirect, url_for
 from signals import (
     SUPPORT_SIGNAL,
     detect_support_signal,
     detect_systems_signal,
     detect_exploration_signal
 )
+from pathlib import Path
+import os
+from telemetry import EventLogger
+
 from reflections import (
     collect_reflections,
     generate_base_summary
@@ -178,13 +182,53 @@ from reflections import (
 from phase5.request import LLMRequest
 from phase5.roles import ParticipantRole, IntelligenceMode
 from phase5.boundary import LLMBoundary
-from phase5.null_adapter import NullLLMAdapter
 import time
 import uuid
 
 app = Flask(__name__, template_folder="templates")
+
+OWNER_COOKIE_NAME = "ce_owner_id"
+OWNER_COOKIE_MAX_AGE = 60 * 60 * 24 * 365 * 2  # 2 years (dev-friendly)
+
+def get_or_create_owner_id():
+    owner_id = request.cookies.get(OWNER_COOKIE_NAME)
+    if owner_id:
+        return owner_id, False
+    return str(uuid.uuid4()), True
+
+def attach_owner_cookie(resp, owner_id: str, created: bool):
+    if created:
+        resp.set_cookie(
+            OWNER_COOKIE_NAME,
+            owner_id,
+            max_age=OWNER_COOKIE_MAX_AGE,
+            httponly=True,
+            samesite="Lax",
+            # secure=True,  # turn on when you’re HTTPS
+        )
+    return resp
+
+LOG_ENABLED = os.getenv("CAREER_EXPLORER_LOGGING", "0") == "1"
+
+# Create a sticky run id once per terminal/server start.
+# The Werkzeug reloader will spawn child processes that inherit this env var.
+if LOG_ENABLED and "CAREER_EXPLORER_RUN_ID" not in os.environ:
+    os.environ["CAREER_EXPLORER_RUN_ID"] = f"run-{int(time.time())}-{uuid.uuid4().hex[:8]}"
+
+# Werkzeug debug reloader uses two processes. Only the child should log.
+RELOADER_ACTIVE = "WERKZEUG_RUN_MAIN" in os.environ
+IS_RELOADER_CHILD = os.environ.get("WERKZEUG_RUN_MAIN") == "true"
+
+SHOULD_LOG = LOG_ENABLED and (IS_RELOADER_CHILD or not RELOADER_ACTIVE)
+
+logger = EventLogger(
+    enabled=SHOULD_LOG,
+    base_dir=Path(__file__).resolve().parent / "logs",
+)
+
 llm_boundary = LLMBoundary()
 conversation_state = {
+    "session_id":str(uuid.uuid4()),
     "stage": 1,
     "responses": {},
     "questions_logged": set(),
@@ -238,6 +282,11 @@ def debug_log(title, data=None):
     print(title)
     if data is not None:
         print(data)
+    logger.event(
+        session_id=conversation_state.get("session_id", "unknown"),
+        event_type=f"debug.{title.lower().replace(' ', '_')}",
+        payload=data if isinstance(data, dict) else {"data": data},
+    )
 
 def append_to_log(
     speaker: str,
@@ -245,14 +294,23 @@ def append_to_log(
     content_type: str,
     phase: int
 ):
-    conversation_state["conversation_log"].append({
+    entry = {
         "id": str(uuid.uuid4()),
         "speaker": speaker,           # "system" | "user" | "ai"
         "content": content,
         "content_type": content_type,
         "phase": phase,
         "timestamp": time.time()
-    })
+    }
+
+    conversation_state["conversation_log"].append(entry)
+
+    logger.event(
+        session_id=conversation_state.get("session_id", "unknown"),
+        event_type="conversation.message",
+        payload=entry,
+    )
+
 
 def insight_log(event, data=None):
     print("\n🧠 INSIGHT:", event)
@@ -316,6 +374,9 @@ def home():
     global conversation_state
     stage = conversation_state["stage"]
 
+    owner_id, owner_created = get_or_create_owner_id()
+    conversation_state["owner_id"] = owner_id
+
     if request.method == "POST":
         user_input = request.form.get("user_input", "").strip()
 
@@ -328,10 +389,8 @@ def home():
                 content_type="consent_offer",
                 phase=5
             )
-            return render_template(
-                "phase5_consent.html",
-                prompt_type="offer"
-            )
+            resp = make_response(render_template("phase5_consent.html", prompt_type="offer"))
+            return attach_owner_cookie(resp, owner_id, owner_created)
 
         if should_explain_phase5_limits(user_input, conversation_state):
             append_to_log(
@@ -340,10 +399,8 @@ def home():
                 content_type="consent_limits",
                 phase=5
             )
-            return render_template(
-                "phase5_consent.html",
-                prompt_type="limits"
-            )
+            resp = make_response(render_template("phase5_consent.html", prompt_type="limits"))
+            return attach_owner_cookie(resp, owner_id, owner_created)
         # --- end Phase 5 interception ---
 
         _ = llm_boundary.evaluate(
@@ -479,14 +536,14 @@ def home():
             if paraphrase_response.status == "paraphrased":
                 alternate_question = paraphrase_response.content
 
-        return render_template(
+        resp = make_response(render_template(
             "index.html",
             conversation_log=conversation_state["conversation_log"],
             question=question,
             alternate_question=alternate_question,
             followup=conversation_state["followup"]
-        )
-
+        ))
+        return attach_owner_cookie(resp, owner_id, owner_created)
     # Otherwise, show summary
     summary = generate_summary(
         conversation_state["responses"],
@@ -499,9 +556,10 @@ def home():
         "escalations": conversation_state["signal_escalated"],
         "user_feedback": conversation_state["feedback"]
     })
-    return render_template("summary.html", summary = summary)
 
 
+    resp = make_response(render_template("summary.html", summary=summary))
+    return attach_owner_cookie(resp, owner_id, owner_created)
 @app.route("/feedback", methods=["POST"])
 def feedback():
     global conversation_state
@@ -520,6 +578,22 @@ def feedback():
         "interpretation": interpretation
     }
 
+    logger.event(
+        session_id=conversation_state["session_id"],
+        event_type="session.feedback_received",
+        payload=conversation_state["feedback"],
+    )
+
+    logger.write_session_snapshot(
+        session_id=conversation_state["session_id"],
+        snapshot={
+            "conversation_log": conversation_state["conversation_log"],
+            "signal_counts": conversation_state["signal_counts"],
+            "signal_escalated": conversation_state["signal_escalated"],
+            "feedback": conversation_state["feedback"],
+        },
+    )
+
     debug_log("USER FEEDBACK RECEIVED", {
         "rating": feedback_value,
         "interpretation": interpretation,
@@ -528,12 +602,22 @@ def feedback():
         "signal_escalated": conversation_state["signal_escalated"]
     })
 
-    return render_template("feedback_thanks.html")
+    owner_id = conversation_state.get("owner_id")
+    if not owner_id:
+        owner_id, owner_created = get_or_create_owner_id()
+    else:
+        owner_created = False
+    conversation_state["owner_id"] = owner_id
 
+    resp = make_response(render_template("feedback_thanks.html"))
+    return attach_owner_cookie(resp, owner_id, owner_created)
 @app.route("/reset")
 def reset():
     global conversation_state
+    owner_id, owner_created = get_or_create_owner_id()
     conversation_state = {
+        "session_id": str(uuid.uuid4()),
+        "owner_id": owner_id,
         "stage": 1,
         "responses": {},
         "questions_logged": set(),
@@ -556,8 +640,9 @@ def reset():
         "phase5_consent_token": None,
         "phase5_offer_shown": False
     }
-    #return redirect(url_for("home"))
-    return "Conversation reset"
+
+    resp = make_response(redirect(url_for("home")))
+    return attach_owner_cookie(resp, owner_id, owner_created)
 
 if __name__ == "__main__":
     app.run(debug=True)

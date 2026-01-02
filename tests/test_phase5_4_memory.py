@@ -123,3 +123,90 @@ def test_delete_means_non_use_and_is_excluded_from_selection_context():
     assert ctx.selected_memory_ids == [item.id]
     assert ctx.resolved_texts == []  # deleted items must not resolve
 
+
+def test_validator_blocks_identity_clinical_and_authoritative_language():
+    """
+    Validator enforcement (Invariant C):
+    - identity-locking phrases are blocked
+    - clinical/diagnostic terms are blocked
+    - authoritative/prescriptive language is blocked
+    """
+    from phase5.memory import (
+        InMemoryMemoryStore,
+        InMemoryMemoryProposalService,
+        MemorySource,
+        MemoryKind,
+        MemoryValidationError,
+    )
+
+    store = InMemoryMemoryStore()
+    svc = InMemoryMemoryProposalService(store)
+
+    owner_id = "user-1"
+    source = MemorySource(source_type="phase3_reflection", source_id="r1", note="After Phase 3 summary")
+
+    proposal = svc.propose(
+        owner_id=owner_id,
+        proposed_text="placeholder",
+        kind=MemoryKind.SELF_OBSERVATION,
+        source=source,
+    )
+
+    bad_texts = [
+        "You are a person who always overthinks.",  # identity-locking (matches 'you are a ')
+        "This is a diagnosis of ADHD.",             # clinical/diagnostic
+        "You should definitely do this next.",      # authoritative ('you should')
+    ]
+
+    for bad in bad_texts:
+        with pytest.raises(MemoryValidationError):
+            svc.approve(
+                owner_id=owner_id,
+                proposal_id=proposal.proposal_id,
+                final_text=bad,
+            )
+
+    # Ensure validator failure never writes memory
+    assert store.list(owner_id) == []
+
+
+def test_empty_selection_does_not_auto_consume_memory_and_has_no_attribution():
+    """
+    No auto-consumption (Invariant F):
+    - even if memory exists, passing empty selected IDs returns empty resolved_texts
+    - attribution should only appear when memory is actually used
+    """
+    from phase5.memory import (
+        InMemoryMemoryStore,
+        InMemoryMemoryProposalService,
+        MemorySelectionContextBuilder,
+        MemorySource,
+        MemoryKind,
+    )
+
+    store = InMemoryMemoryStore()
+    svc = InMemoryMemoryProposalService(store)
+    selector = MemorySelectionContextBuilder(store)
+
+    owner_id = "user-1"
+    source = MemorySource(source_type="phase5_3_interpretation", source_id="i1", note="After resonance: resonates")
+
+    proposal = svc.propose(
+        owner_id=owner_id,
+        proposed_text="I prefer learning by building small prototypes.",
+        kind=MemoryKind.PREFERENCE,
+        source=source,
+    )
+    svc.approve(
+        owner_id=owner_id,
+        proposal_id=proposal.proposal_id,
+        final_text="I prefer learning by building small prototypes.",
+    )
+
+    assert len(store.list(owner_id)) == 1  # memory exists
+
+    ctx = selector.build(owner_id=owner_id, selected_memory_ids=[])
+
+    assert ctx.selected_memory_ids == []
+    assert ctx.resolved_texts == []
+    assert ctx.attribution_line == ""  # no attribution if nothing was used
