@@ -12,7 +12,7 @@
 ## 0) Current Status Snapshot
 
 - [x] ✅ Phase 5.4 **memory primitives exist** (schema, store, proposal workflow, selection builder).
-- [ ] ⛔ Phase 5.4 **is not integrated** into runtime UI/flow yet (no routes, no templates, no gating).
+- [ ] ✅ Phase 5.4 **is  integrated** into runtime UI/flow yet (no routes, no templates, no gating).
 - [x] ✅ Phase 5.4 has dev-only file-backed persistence (JSON per owner_id)
 - [x] 🟡 Stable anonymous owner_id exists (cookie-based; no login).
 
@@ -25,7 +25,7 @@
 - [ ] ⛔ Phase 5.4 is **opt-in only** (separate explicit action from user).
 - [ ] ⛔ Consent is **separate from Phase 5.3** (no shared tokens; no accidental upgrade).
 - [ ] ⛔ Phase ordering enforced:
-  - [ ] ⛔ Memory proposals only happen after Phase 3 reflection and/or Phase 5.3 resonance loop completes.
+- [ ] ⛔ Memory proposals only happen after Phase 3 reflection and/or Phase 5.3 resonance loop completes.
 - [ ] ⛔ No memory logic reachable without explicit user action (no implicit “helpful remembering”).
 - [ ] ⛔ No automatic upgrades into memory mode.
 
@@ -165,3 +165,30 @@
 - [x] ✅ Encoded into design + enforced mechanically at storage-time:
 
 > **“The system can remember what the user approved, without deciding who the user is.”**
+
+
+---
+
+## Phase 5.4 Completion Note
+
+Phase 5.4 is considered **complete** as a *memory primitive layer*.
+
+This phase intentionally delivers:
+- A proposal-before-write memory architecture
+- Explicit user approval semantics
+- Mechanical guards against identity, clinical, and authoritative language
+- Non-use guarantees (delete = not consumed)
+- Explicit selection-based retrieval (no auto-recall)
+- Owner-scoped, file-backed persistence for development
+
+This phase **does not** include:
+- User-facing UI (ledger, approve/decline buttons, forget flows)
+- Consent gating or Phase 5.3 integration
+- Cross-owner adversarial enforcement
+- Prompt injection or downstream application usage
+
+All unchecked items are **intentionally deferred** to Phase 5.5 (Product Integration)
+and Phase 5.6 (Safety + Adversarial Hardening).
+
+Invariant achieved:
+> “The system can remember what the user approved, without deciding who the user is.”

@@ -88,6 +88,40 @@ def load_proposals(owner_id: str) -> List[Dict[str, Any]]:
     with path.open("r", encoding="utf-8") as f:
         return json.load(f)
 
+# Proposal record schema (implicit, storage-owned):
+# {
+#   proposal_id: str
+#   owner_id: str
+#   proposed_text: str
+#   kind: str
+#   source_type: str
+#   decision: "pending" | "approved" | "declined"
+#   created_at: Optional[float]
+#   declined_at?: float
+#   decline_reason?: str
+# }
+
+def append_proposal(
+    owner_id: str,
+    proposed_text: str,
+    kind: str,
+    source_type: str,
+) -> None:
+    proposals = load_proposals(owner_id)
+
+    proposals.append({
+        "proposal_id": str(len(proposals) + 1),
+        "owner_id": owner_id,
+        "proposed_text": proposed_text,
+        "kind": kind,
+        "source_type": source_type,
+        "decision": "pending",
+        "created_at": None  # or time.time() if you prefer
+         })
+
+    save_proposals(owner_id, proposals)
+
+
 def save_memory(owner_id: str, items: list) -> None:
     """
     Overwrite memory.json for an owner.

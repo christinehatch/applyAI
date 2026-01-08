@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Memory Proposals</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      margin: 2rem;
+      background: #fafafa;
+    }
+    .proposal {
+      border: 1px solid #ddd;
+      background: white;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      border-radius: 6px;
+    }
+    .meta {
+      color: #666;
+      font-size: 0.85rem;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Memory Proposals</h1>
+
+{% if not proposals %}
+  <p>No memory proposals yet.</p>
+{% else %}
+  {% for p in proposals %}
+    <div class="proposal">
+      <strong>{{ p.proposed_text }}</strong>
+
+      <div class="meta">
+        ID: {{p.proposal_id}}<br>
+        Kind: {{ p.kind }}<br>
+        Status: {{ p.decision }}<br>
+        Created: {{ p.created_at or "—" }}
+      </div>
+      {% if p.decision == "pending" %}
+        <form
+          method="POST"
+          action="/memory/proposals/{{ p.proposal_id }}/approve"
+          style="margin-top: 0.75rem;"
+        >
+          <button type="submit">Approve</button>
+        </form>
+        <form method="POST"
+            action="/memory/proposals/{{ p.proposal_id }}/decline"
+            style="display:inline; margin-left: 0.5rem;">
+          <button type="submit">Decline</button>
+        </form>
+      {% endif %}
+    </div>
+  {% endfor %}
+{% endif %}
+
+<p><a href="/memory">← Back to Memory</a></p>
+
+</body>
+</html>
+

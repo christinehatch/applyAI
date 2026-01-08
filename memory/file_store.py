@@ -14,23 +14,34 @@ from .storage import (
 
 
 def _item_from_dict(data: dict) -> MemoryItem:
+    now = datetime.now(timezone.utc)
+
     return MemoryItem(
         id=data["id"],
-        owner_id=data["owner_id"],
+        owner_id=data.get("owner_id"),  # legacy-safe
         text=data["text"],
-        kind=data["kind"],
+        kind=data.get("kind", "UNKNOWN"),
         source=MemorySource(
-            source_type=data["source"]["source_type"]
+            source_type=data.get("source", {}).get("source_type", "legacy")
         ),
-        created_at=datetime.fromisoformat(data["created_at"]),
-        updated_at=datetime.fromisoformat(data["updated_at"]),
-        status=data["status"],
+        created_at=(
+            datetime.fromisoformat(data["created_at"])
+            if isinstance(data.get("created_at"), str)
+            else now
+        ),
+        updated_at=(
+            datetime.fromisoformat(data["updated_at"])
+            if isinstance(data.get("updated_at"), str)
+            else now
+        ),
+        status=data.get("status", "active"),
         deleted_at=(
             datetime.fromisoformat(data["deleted_at"])
             if data.get("deleted_at")
             else None
         ),
     )
+
 def _item_to_dict(item: MemoryItem) -> dict:
     return {
         "id": item.id,

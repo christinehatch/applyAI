@@ -182,6 +182,8 @@ from reflections import (
 from phase5.request import LLMRequest
 from phase5.roles import ParticipantRole, IntelligenceMode
 from phase5.boundary import LLMBoundary
+from memory.file_store import FileBackedMemoryStore
+from memory.storage import append_proposal
 import time
 import uuid
 
@@ -249,7 +251,8 @@ conversation_state = {
         "detail": "..."
     },
     "phase5_consent_token": "dev-consent",
-    "phase5_offer_shown": False
+    "phase5_offer_shown": False,
+    "proposals_emitted": False
 
 }
 QUESTIONS = {
@@ -358,6 +361,19 @@ def generate_summary(responses, conversation_state):
     # 2. Phase 3 reflective snippets
     reflections = collect_reflections(conversation_state)
     summary.extend(reflections)
+
+    # --- Phase 5.4 runtime proposal emission (NO approval) ---
+    owner_id = conversation_state.get("owner_id")
+    if owner_id and not conversation_state.get("proposals_emitted"):
+        for text in reflections:
+            append_proposal(
+                owner_id=owner_id,
+                proposed_text=text,
+                kind="SELF_OBSERVATION",
+                source_type="phase3_reflection",
+            )
+        conversation_state["proposals_emitted"] = True
+    # --- end Phase 5.4 ---
 
     debug_log("SUMMARY FEEDBACK ALIGNMENT", {
         "interpretation": conversation_state["feedback"].get("interpretation"),
@@ -611,6 +627,93 @@ def feedback():
 
     resp = make_response(render_template("feedback_thanks.html"))
     return attach_owner_cookie(resp, owner_id, owner_created)
+
+@app.route("/memory")
+def view_memory():
+    owner_id, owner_created = get_or_create_owner_id()
+
+    store = FileBackedMemoryStore()
+    memories = store.list(owner_id)
+
+    from memory.storage import load_proposals
+    proposals = load_proposals(owner_id)
+    pending = [p for p in proposals if p.get("decision") == "pending"]
+
+    resp = make_response(render_template(
+        "memory.html",
+        memories=memories,
+        proposal_count = len(pending),
+        owner_id=owner_id,
+    ))
+    return attach_owner_cookie(resp, owner_id, owner_created)
+
+@app.route("/memory/proposals")
+def view_memory_proposals():
+    owner_id, owner_created = get_or_create_owner_id()
+
+    from memory.storage import load_proposals
+    proposals = [
+        p for p in load_proposals(owner_id)
+        if p.get("decision") == "pending"
+    ]
+    resp = make_response(render_template(
+        "memory_proposals.html",
+        proposals=proposals,
+        owner_id=owner_id,
+    ))
+    return attach_owner_cookie(resp, owner_id, owner_created)
+
+@app.route("/memory/proposals/<proposal_id>/approve", methods=["POST"])
+def approve_memory_proposal(proposal_id):
+    owner_id, owner_created = get_or_create_owner_id()
+
+    from memory.storage import load_proposals, save_proposals, load_memory, save_memory
+    proposals = load_proposals(owner_id)
+    memory = load_memory(owner_id)
+
+    p = next((p for p in proposals if p["proposal_id"] == proposal_id), None)
+    if not p:
+        return (
+            f"Proposal {proposal_id} not found for this owner",
+            404,
+        )
+
+    memory.append({
+        "id": f"m-{len(memory)+1}",
+        "owner_id": owner_id,
+        "text": p["proposed_text"],
+        "kind": p["kind"],
+        "created_at": time.time(),
+        "status": "active",
+    })
+
+    p["decision"] = "approved"
+
+    save_memory(owner_id, memory)
+    save_proposals(owner_id, proposals)
+
+    return redirect(url_for("view_memory_proposals"))
+
+@app.route("/memory/proposals/<proposal_id>/decline", methods=["POST"])
+def decline_memory_proposal(proposal_id):
+    owner_id, owner_created = get_or_create_owner_id()
+
+    from memory.storage import load_proposals, save_proposals
+    proposals = load_proposals(owner_id)
+
+    p = next((p for p in proposals if p["proposal_id"] == proposal_id), None)
+    if not p:
+        return f"Proposal {proposal_id} not found for this owner", 404
+
+    p["decision"] = "declined"
+    p["declined_at"] = time.time()
+    p["decline_reason"] = request.form.get("reason")  # optional
+
+    save_proposals(owner_id, proposals)
+
+    return redirect(url_for("view_memory_proposals"))
+
+
 @app.route("/reset")
 def reset():
     global conversation_state
@@ -638,7 +741,8 @@ def reset():
             "detail": "..."
         },
         "phase5_consent_token": None,
-        "phase5_offer_shown": False
+        "phase5_offer_shown": False,
+        "proposals_emitted": False
     }
 
     resp = make_response(redirect(url_for("home")))
