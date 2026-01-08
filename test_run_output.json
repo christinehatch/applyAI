@@ -1,0 +1,33 @@
+{
+  "transcript": [
+    {
+      "stage": 1,
+      "answer": "The project seems to be asking for a system that reduces cognitive load by making navigation playful and predictable, rather than optimized or fast.",
+      "status": 200
+    },
+    {
+      "stage": 2,
+      "answer": "I would start by identifying emotional friction points first, then map features to moments of stress or confusion.",
+      "status": 200
+    },
+    {
+      "stage": 3,
+      "answer": "The biggest uncertainty is balancing structure with flexibility without overwhelming the user.",
+      "status": 200
+    }
+  ],
+  "summary_html": "<!DOCTYPE html>\n<html>\n<head>\n    <title>AI Career Explorer \u2014 Summary</title>\n</head>\n<body>\n    <h1>Conversation Summary</h1>\n\n    <p>Based on how you responded across three prompts about problem framing, starting strategy, and uncertainty, here\u2019s what stands out:</p>\n    <p>You tend to think in terms of systems, features, and interactions rather than linear task lists. You often approached the problem by breaking it into parts and thinking about how those pieces fit together before taking action.</p>\n    <form method=\"POST\" action =\"/feedback\">\n\n        <br><br><br>\n        <p>Does this summary feel accurate based on how you think and work?</p>\n        <br>\n        <button type=\"submit\" name=\"feedback\" value=\"yes\">Yes</button>\n        <button type=\"submit\" name=\"feedback\" value=\"somewhat\">Somewhat</button>\n        <button type=\"submit\" name=\"feedback\" value=\"no\">No</button>\n\n        <textarea name=\"feedback_detail\" rows=\"3\" cols=\"60\"\n          placeholder=\"Optional: what feels right or off?\"></textarea>\n         <p><small>Your answer helps refine the summary.</small></p>\n    </form>\n    <a href=\"/reset\">Start Over</a>\n</body>\n</html>",
+  "memory_html": "<!doctype html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\">\n  <title>Your Memory</title>\n  <style>\n    body {\n      font-family: system-ui, sans-serif;\n      margin: 2rem;\n      background: #fafafa;\n    }\n    .memory {\n      border: 1px solid #ddd;\n      background: white;\n      padding: 1rem;\n      margin-bottom: 1rem;\n      border-radius: 6px;\n    }\n    .meta {\n      color: #666;\n      font-size: 0.85rem;\n    }\n  </style>\n</head>\n<body>\n\n<h1>Your Memory</h1>\n\n\n  <p>No memory has been saved yet.</p>\n\n\n<p style=\"margin-top: 2rem;\">\n  <a href=\"/memory/proposals\">\n    View memory proposals \u2192\n  </a>\n\n  \n    <span style=\"margin-left: 0.5rem; font-size: 0.9rem; color: #888;\">\n      (1)\n    </span>\n  \n</p>\n\n</body>\n</html>\n",
+  "proposals_html": "<!doctype html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\">\n  <title>Memory Proposals</title>\n  <style>\n    body {\n      font-family: system-ui, sans-serif;\n      margin: 2rem;\n      background: #fafafa;\n    }\n    .proposal {\n      border: 1px solid #ddd;\n      background: white;\n      padding: 1rem;\n      margin-bottom: 1rem;\n      border-radius: 6px;\n    }\n    .meta {\n      color: #666;\n      font-size: 0.85rem;\n    }\n  </style>\n</head>\n<body>\n\n<h1>Memory Proposals</h1>\n\n\n  \n    <div class=\"proposal\">\n      <strong>You often approached the problem by breaking it into parts and thinking about how those pieces fit together before taking action.</strong>\n\n      <div class=\"meta\">\n        ID: 1<br>\n        Kind: SELF_OBSERVATION<br>\n        Status: pending<br>\n        Created: \u2014\n      </div>\n      \n        <form\n          method=\"POST\"\n          action=\"/memory/proposals/1/approve\"\n          style=\"margin-top: 0.75rem;\"\n        >\n          <button type=\"submit\">Approve</button>\n        </form>\n        <form method=\"POST\"\n            action=\"/memory/proposals/1/decline\"\n            style=\"display:inline; margin-left: 0.5rem;\">\n          <button type=\"submit\">Decline</button>\n        </form>\n      \n    </div>\n  \n\n\n<p><a href=\"/memory\">\u2190 Back to Memory</a></p>\n\n</body>\n</html>\n",
+  "proposals_raw": [
+    {
+      "proposal_id": "1",
+      "owner_id": "292a31fa-2baf-4947-9023-f62183359171",
+      "proposed_text": "You often approached the problem by breaking it into parts and thinking about how those pieces fit together before taking action.",
+      "kind": "SELF_OBSERVATION",
+      "source_type": "phase3_reflection",
+      "decision": "pending",
+      "created_at": null
+    }
+  ]
+}

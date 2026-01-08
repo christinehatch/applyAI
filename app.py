@@ -182,6 +182,8 @@ from reflections import (
 from phase5.request import LLMRequest
 from phase5.roles import ParticipantRole, IntelligenceMode
 from phase5.boundary import LLMBoundary
+from phase5.memory import validate_memory_text
+from datetime import datetime, timezone
 from memory.file_store import FileBackedMemoryStore
 from memory.storage import append_proposal
 import time
@@ -671,28 +673,36 @@ def approve_memory_proposal(proposal_id):
     proposals = load_proposals(owner_id)
     memory = load_memory(owner_id)
 
-    p = next((p for p in proposals if p["proposal_id"] == proposal_id), None)
+    p = next((p for p in proposals if p.get("proposal_id") == proposal_id), None)
     if not p:
-        return (
-            f"Proposal {proposal_id} not found for this owner",
-            404,
-        )
+        return f"Proposal {proposal_id} not found for this owner", 404
+
+    text = (p.get("proposed_text") or "").strip()
+
+    # 🔒 Phase 5.4 invariant enforcement
+    validate_memory_text(text)
+
+    now = time.time()
 
     memory.append({
-        "id": f"m-{len(memory)+1}",
+        "id": str(uuid.uuid4()),
         "owner_id": owner_id,
-        "text": p["proposed_text"],
-        "kind": p["kind"],
-        "created_at": time.time(),
+        "text": text,
+        "kind": p.get("kind", "note"),
+        "source_type": p.get("source_type", "assistant"),
         "status": "active",
+        "created_at": now,
+        "updated_at": now,
     })
 
     p["decision"] = "approved"
+    p["approved_at"] = now
 
     save_memory(owner_id, memory)
     save_proposals(owner_id, proposals)
 
     return redirect(url_for("view_memory_proposals"))
+
 
 @app.route("/memory/proposals/<proposal_id>/decline", methods=["POST"])
 def decline_memory_proposal(proposal_id):

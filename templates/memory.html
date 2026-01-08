@@ -28,11 +28,11 @@
 
 {% if not memories %}
   <p>No memory has been saved yet.</p>
+  <p class="meta">
+    Memories only appear after you explicitly approve them.
+  </p>
 {% else %}
-  <ul><p>No memory has been saved yet.</p>
-<p class="meta">
-  Memories only appear after you explicitly approve them.
-</p>
+  <ul>
     {% for item in memories %}
       <li style="margin-bottom: 1rem;">
         <strong>{{ item.text }}</strong><br>
