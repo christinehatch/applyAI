@@ -20,3 +20,10 @@ logs/
 
 # user memory 
 memory/owners/
+
+
+# -----------------------------
+# Test artifacts / generated output
+# -----------------------------
+test_run_output.json
+test_run_output_*.json
