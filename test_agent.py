@@ -7,9 +7,10 @@ def run_test():
     client = app.test_client()
     transcript = []
 
-    # GET initial page
+    # GET initial page (sets cookie / owner)
     client.get("/")
 
+    # Drive conversation deterministically
     for stage, answer in TEST_RESPONSES.items():
         response = client.post(
             "/",
@@ -22,35 +23,59 @@ def run_test():
             "status": response.status_code,
         })
 
-    # 🔑 FORCE summary + proposal emission
+    approved_proposal_id = None
+
+    # ---- Phase 1: force summary + get pending proposals ----
     with app.app_context():
         from app import generate_summary, conversation_state
-        _ = generate_summary(
+        from memory.storage import load_proposals
+
+        generate_summary(
             conversation_state["responses"],
             conversation_state
         )
 
-    # Fetch pages after proposals exist
+        owner_id = conversation_state.get("owner_id")
+        proposals = load_proposals(owner_id)
+        pending = [p for p in proposals if p.get("decision") == "pending"]
+
+    # ---- Phase 2: approve first proposal (REAL request) ----
+    if pending:
+        approved_proposal_id = pending[0]["proposal_id"]
+        client.post(
+            f"/memory/proposals/{approved_proposal_id}/approve",
+            follow_redirects=True,
+        )
+
+    # ---- Phase 3: read resulting memory + proposals ----
+    with app.app_context():
+        from memory.storage import load_memory, load_proposals
+
+        memory_raw = load_memory(owner_id)
+        # --- Assert timestamp invariant ---
+        assert len(memory_raw) == 1, "Expected exactly one memory item after approval"
+
+        item = memory_raw[0]
+        assert item["created_at"] == item["updated_at"], (
+            "Invariant violated: created_at and updated_at must match on creation")
+
+        proposals_raw = load_proposals(owner_id)
+
+    # ---- Phase 4: fetch rendered pages ----
     summary_page = client.get("/")
     memory_page = client.get("/memory")
     proposals_page = client.get("/memory/proposals")
 
+    # ---- Assemble result LAST ----
     result = {
         "transcript": transcript,
+        "approved_proposal_id": approved_proposal_id,
         "summary_html": summary_page.data.decode("utf-8"),
         "memory_html": memory_page.data.decode("utf-8"),
         "proposals_html": proposals_page.data.decode("utf-8"),
+        "proposals_raw": proposals_raw,
+        "memory_raw": memory_raw,
     }
-
-    # 🔒 Safely read owner + proposals inside app context
-    with app.app_context():
-        from app import conversation_state
-        from memory.storage import load_proposals
-
-        owner_id = conversation_state.get("owner_id")
-        print("TEST AGENT OWNER_ID:", owner_id)
-
-        result["proposals_raw"] = load_proposals(owner_id)
 
     with open("test_run_output.json", "w") as f:
         json.dump(result, f, indent=2)
