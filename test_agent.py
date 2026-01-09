@@ -24,6 +24,7 @@ def run_test():
         })
 
     approved_proposal_id = None
+    declined_proposal_id = None
 
     # ---- Phase 1: force summary + get pending proposals ----
     with app.app_context():
@@ -39,11 +40,19 @@ def run_test():
         proposals = load_proposals(owner_id)
         pending = [p for p in proposals if p.get("decision") == "pending"]
 
-    # ---- Phase 2: approve first proposal (REAL request) ----
+
+    # ---- Phase 2: approve first proposal, decline second ----
     if pending:
         approved_proposal_id = pending[0]["proposal_id"]
         client.post(
             f"/memory/proposals/{approved_proposal_id}/approve",
+            follow_redirects=True,
+        )
+
+    if len(pending) > 1:
+        declined_proposal_id = pending[1]["proposal_id"]
+        client.post(
+            f"/memory/proposals/{declined_proposal_id}/decline",
             follow_redirects=True,
         )
 
@@ -61,6 +70,24 @@ def run_test():
 
         proposals_raw = load_proposals(owner_id)
 
+        assert len(memory_raw) == 1 + 0, (
+            "Declined proposals must not create memory"
+        )
+
+        # --- Assert declined proposal invariants ---
+        if declined_proposal_id:
+            declined = next(
+                (p for p in proposals_raw if p["proposal_id"] == declined_proposal_id),
+                None
+            )
+
+            assert declined is not None, "Declined proposal not found in storage"
+
+            assert declined["decision"] == "declined"
+            assert declined.get("approved_at") is None, (
+                "Declined proposal must not have approved_at timestamp"
+            )
+
     # ---- Phase 4: fetch rendered pages ----
     summary_page = client.get("/")
     memory_page = client.get("/memory")
@@ -75,6 +102,7 @@ def run_test():
         "proposals_html": proposals_page.data.decode("utf-8"),
         "proposals_raw": proposals_raw,
         "memory_raw": memory_raw,
+        "declined_proposal_id": declined_proposal_id,
     }
 
     with open("test_run_output.json", "w") as f:
