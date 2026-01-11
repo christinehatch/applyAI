@@ -163,3 +163,95 @@ Integrate Phase 5.4’s ethical memory primitives into a user-facing product **w
 **Owner:**  
 **Notes:**  
 
+## 5.5.12 Route Contracts & Immutability
+
+- Existing Phase 1–3 conversation routes are treated as **read-only**
+- `/` (conversation flow) behavior unchanged except for:
+  - emitting proposals
+  - surfacing summaries
+- No consent logic added inside conversation handlers
+- Memory logic lives **outside** conversational state machines
+- Summary generation callable **without user navigation** (test harness safe)
+
+---
+
+## 5.5.13 Proposal Lifecycle Invariants  
+*(Validated by Test Agent)*
+
+- Proposal creation does **not** write memory
+- Approved proposal creates **exactly one** memory item
+- Declined proposal creates **zero** memory items
+
+**Approved proposal:**
+- sets `approved_at`
+- does **not** mutate `created_at`
+
+**Declined proposal:**
+- sets `decision = declined`
+- does **not** set `approved_at`
+
+- Approved proposals never reappear in pending lists
+- Declined proposals never reappear unless explicitly re-proposed
+
+---
+
+## 5.5.14 Memory Timestamp Invariants
+
+- `created_at` is set **once**, at approval time
+- `updated_at` equals `created_at` on initial creation
+- Reading memory does **not** update timestamps
+- Viewing ledger does **not** mutate memory
+- Timestamp invariants enforced via automated test
+
+✔️ Implemented and verified via deterministic test agent
+
+---
+
+## 5.5.15 Deterministic Test Harness (Non-User)
+
+- Test agent can:
+  - simulate full conversation
+  - force summary generation
+  - approve / decline proposals via **real routes**
+- Test agent does **not** bypass routes with internal writes
+- Test agent asserts **invariants**, not interpretations
+- Test artifacts excluded via `.gitignore`
+- Test failures are **hard failures**, not warnings
+
+---
+
+## 5.5.16 What Tests Are Explicitly NOT Allowed To Do
+
+- No direct writes to memory storage
+- No synthetic memory injection
+- No shortcut “accept all” helpers
+- No bypassing consent / proposal routes
+- No reliance on global mutable state across tests
+
+---
+
+## 5.5.17 Documentation as a First-Class Artifact
+
+- Route contracts documented **before** modification
+- Consent UI designed **before** code
+- Tests written to protect **ethics**, not just correctness
+- Each Phase 5.5 code change maps to:
+  - a checklist item
+  - a test assertion
+  - a documented invariant
+
+---
+
+## 5.5.18 Exit Criteria (Amended)
+
+Phase 5.5 is complete when:
+
+- Memory lifecycle is correct **and provable**
+- Approval and decline are symmetric and safe
+- No timestamps drift under repeated runs
+- Conversation flow remains untouched
+- A future contributor can:
+  - read the checklist
+  - run the test agent
+  - understand what must **never** change
+

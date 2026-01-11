@@ -7,6 +7,17 @@
 
 ---
 
+## Step 0 — Immutability Lock
+
+As of Phase 5.5, the following are considered **behaviorally frozen**.
+Any change to these surfaces requires:
+- a new phase number
+- a new route contract
+- and new tests
+
+Refactors, cleanups, and “minor improvements” are NOT permitted.
+
+
 ## Global Phase 5 Invariants (Apply to ALL routes)
 
 * No route may:
@@ -34,6 +45,7 @@
   
   
   ---
+  
 
 ## Consent UI Clarifications (Phase 5.5)
 
