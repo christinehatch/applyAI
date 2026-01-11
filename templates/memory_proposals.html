@@ -26,6 +26,19 @@
 
 <h1>Memory Proposals</h1>
 
+<p class="meta">
+  These are memory proposals generated from earlier reflections.
+  <br><br>
+  <strong>Approve</strong> saves this item to your memory.
+  <br>
+  <strong>Decline</strong> means it will not be saved.
+  <br><br>
+  Nothing is stored unless you explicitly approve it.
+  <br><br>
+  <em>Only pending proposals appear on this page.</em>
+</p>
+
+
 {% if not proposals %}
   <p>No memory proposals yet.</p>
 {% else %}
@@ -40,6 +53,9 @@
         Created: {{ p.created_at or "—" }}
       </div>
       {% if p.decision == "pending" %}
+        <p class="meta">
+          Your choice applies only to this item.
+        </p>
         <form
           method="POST"
           action="/memory/proposals/{{ p.proposal_id }}/approve"
