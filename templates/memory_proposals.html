@@ -52,7 +52,7 @@
         Status: {{ p.decision }}<br>
         Created: {{ p.created_at or "—" }}
       </div>
-      {% if p.decision == "pending" %}
+      {% if p.consent_state == ConsentState.PENDING %}
         <p class="meta">
           Your choice applies only to this item.
         </p>

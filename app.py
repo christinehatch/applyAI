@@ -183,6 +183,7 @@ from phase5.request import LLMRequest
 from phase5.roles import ParticipantRole, IntelligenceMode
 from phase5.boundary import LLMBoundary
 from phase5.memory import validate_memory_text
+from phase5.consent import get_consent_state, ConsentState
 from datetime import datetime, timezone
 from memory.file_store import FileBackedMemoryStore
 from memory.storage import append_proposal
@@ -654,16 +655,27 @@ def view_memory_proposals():
     owner_id, owner_created = get_or_create_owner_id()
 
     from memory.storage import load_proposals
+    from phase5.consent import get_consent_state, ConsentState  # READ-ONLY
+
+    # Load proposals (storage-level data)
     proposals = [
         p for p in load_proposals(owner_id)
         if p.get("decision") == "pending"
     ]
+
+    # 🔒 Step 7: read-only annotation for UI
+    for p in proposals:
+        p["consent_state"] = get_consent_state(p)
+
     resp = make_response(render_template(
         "memory_proposals.html",
         proposals=proposals,
         owner_id=owner_id,
+        ConsentState=ConsentState,  # expose enum to Jinja
     ))
+
     return attach_owner_cookie(resp, owner_id, owner_created)
+
 
 @app.route("/memory/proposals/<proposal_id>/approve", methods=["POST"])
 def approve_memory_proposal(proposal_id):
