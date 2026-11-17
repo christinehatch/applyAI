@@ -241,13 +241,12 @@ llm_boundary = LLMBoundary()
 # in-memory conversation. State is never shared between owners and is
 # never written to disk. It is lost on process restart, by design.
 
-# Initial consent token for a brand-new owner's conversation.
-# NOTE: this preserves the pre-existing behavior of the old global state,
-# which started with "dev-consent" (while /reset starts with None).
-INITIAL_PHASE5_CONSENT_TOKEN = "dev-consent"
+#
+# Consent is opt-in: every conversation (new or reset) starts with no
+# Phase 5 consent token. Nothing in this module may grant one implicitly.
 
 
-def new_conversation_state(owner_id: str, phase5_consent_token=INITIAL_PHASE5_CONSENT_TOKEN) -> dict:
+def new_conversation_state(owner_id: str) -> dict:
     return {
         "session_id": str(uuid.uuid4()),
         "owner_id": owner_id,
@@ -270,7 +269,7 @@ def new_conversation_state(owner_id: str, phase5_consent_token=INITIAL_PHASE5_CO
             "rating": "...",
             "detail": "..."
         },
-        "phase5_consent_token": phase5_consent_token,
+        "phase5_consent_token": None,
         "phase5_offer_shown": False,
         "proposals_emitted": False
     }
@@ -296,7 +295,7 @@ def reset_conversation_state(owner_id: str) -> dict:
     """Replace this owner's conversation with a fresh one. Other owners are untouched."""
     if not owner_id:
         raise ValueError("owner_id is required for conversation state")
-    state = new_conversation_state(owner_id, phase5_consent_token=None)
+    state = new_conversation_state(owner_id)
     with _conversation_states_lock:
         _conversation_states[owner_id] = state
     return state

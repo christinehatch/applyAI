@@ -11,7 +11,6 @@ proposals are written to disk.
 
 import pytest
 
-import app as app_module
 from app import (
     OWNER_COOKIE_NAME,
     QUESTIONS,
@@ -119,14 +118,27 @@ def test_request_without_cookie_does_not_reuse_existing_state(two_owners):
     assert get_conversation_state(_owner_id(stranger))["responses"] == {}
 
 
-def test_new_and_reset_states_keep_existing_consent_defaults():
-    # Behavior preserved from the old global state: a fresh conversation
-    # starts with the dev consent token, a reset one starts with None.
+def test_new_and_reset_states_start_without_consent():
+    # Consent is opt-in: neither a brand-new nor a reset conversation
+    # may start with a Phase 5 consent token.
     fresh = get_conversation_state("owner-consent-defaults")
-    assert fresh["phase5_consent_token"] == app_module.INITIAL_PHASE5_CONSENT_TOKEN
+    assert fresh["phase5_consent_token"] is None
 
     reset = reset_conversation_state("owner-consent-defaults")
     assert reset["phase5_consent_token"] is None
+
+
+def test_new_owner_sees_consent_offer_when_asking_for_analysis():
+    client = app.test_client()
+    client.get("/")
+
+    page = client.post("/", data={"user_input": "Can you analyze my answer?"})
+    state = get_conversation_state(_owner_id(client))
+
+    assert state["phase5_offer_shown"] is True
+    assert state["phase5_consent_token"] is None
+    assert state["responses"] == {}, "Consent offer must not consume the answer"
+    assert page.status_code == 200
 
 
 @pytest.mark.parametrize("bad_owner", ["", None])
