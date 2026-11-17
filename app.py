@@ -187,6 +187,7 @@ from phase5.consent import get_consent_state, ConsentState
 from datetime import datetime, timezone
 from memory.file_store import FileBackedMemoryStore
 from memory.storage import append_proposal
+import threading
 import time
 import uuid
 
@@ -232,32 +233,73 @@ logger = EventLogger(
 )
 
 llm_boundary = LLMBoundary()
-conversation_state = {
-    "session_id":str(uuid.uuid4()),
-    "stage": 1,
-    "responses": {},
-    "questions_logged": set(),
-    "followup": None,
-    "followup_answers": None,
-    "conversation_log": [],
-    "signal_counts": {
-        "support_seeking": 0,
-        "overwhelmed": 0,
-        "systems_thinking": 0,
-        "exploration_first": 0
-    },
-    "signal_escalated": {
-        "support_seeking": False
-    },
-    "feedback": {
-        "rating": "...",
-        "detail": "..."
-    },
-    "phase5_consent_token": "dev-consent",
-    "phase5_offer_shown": False,
-    "proposals_emitted": False
 
-}
+# ------------------------------------------------------------
+# Per-owner conversation state
+# ------------------------------------------------------------
+# Each owner (identified by the ce_owner_id cookie) gets an isolated,
+# in-memory conversation. State is never shared between owners and is
+# never written to disk. It is lost on process restart, by design.
+
+# Initial consent token for a brand-new owner's conversation.
+# NOTE: this preserves the pre-existing behavior of the old global state,
+# which started with "dev-consent" (while /reset starts with None).
+INITIAL_PHASE5_CONSENT_TOKEN = "dev-consent"
+
+
+def new_conversation_state(owner_id: str, phase5_consent_token=INITIAL_PHASE5_CONSENT_TOKEN) -> dict:
+    return {
+        "session_id": str(uuid.uuid4()),
+        "owner_id": owner_id,
+        "stage": 1,
+        "responses": {},
+        "questions_logged": set(),
+        "followup": None,
+        "followup_answers": None,
+        "conversation_log": [],
+        "signal_counts": {
+            "support_seeking": 0,
+            "overwhelmed": 0,
+            "systems_thinking": 0,
+            "exploration_first": 0
+        },
+        "signal_escalated": {
+            "support_seeking": False
+        },
+        "feedback": {
+            "rating": "...",
+            "detail": "..."
+        },
+        "phase5_consent_token": phase5_consent_token,
+        "phase5_offer_shown": False,
+        "proposals_emitted": False
+    }
+
+
+_conversation_states: dict = {}
+_conversation_states_lock = threading.Lock()
+
+
+def get_conversation_state(owner_id: str) -> dict:
+    """Return this owner's conversation state, creating it on first use."""
+    if not owner_id:
+        raise ValueError("owner_id is required for conversation state")
+    with _conversation_states_lock:
+        state = _conversation_states.get(owner_id)
+        if state is None:
+            state = new_conversation_state(owner_id)
+            _conversation_states[owner_id] = state
+        return state
+
+
+def reset_conversation_state(owner_id: str) -> dict:
+    """Replace this owner's conversation with a fresh one. Other owners are untouched."""
+    if not owner_id:
+        raise ValueError("owner_id is required for conversation state")
+    state = new_conversation_state(owner_id, phase5_consent_token=None)
+    with _conversation_states_lock:
+        _conversation_states[owner_id] = state
+    return state
 QUESTIONS = {
     1: (
         "Imagine you’re asked to help design a new app for helping people "
@@ -283,7 +325,7 @@ FEEDBACK_INTERPRETATION = {
 }
 
 
-def debug_log(title, data=None):
+def debug_log(conversation_state, title, data=None):
     print("\n" + "-" * 40)
     print(title)
     if data is not None:
@@ -295,6 +337,7 @@ def debug_log(title, data=None):
     )
 
 def append_to_log(
+    conversation_state,
     speaker: str,
     content: str,
     content_type: str,
@@ -378,7 +421,7 @@ def generate_summary(responses, conversation_state):
         conversation_state["proposals_emitted"] = True
     # --- end Phase 5.4 ---
 
-    debug_log("SUMMARY FEEDBACK ALIGNMENT", {
+    debug_log(conversation_state, "SUMMARY FEEDBACK ALIGNMENT", {
         "interpretation": conversation_state["feedback"].get("interpretation"),
         "signals_visible": [
             k for k, v in conversation_state["signal_counts"].items()
@@ -390,11 +433,9 @@ def generate_summary(responses, conversation_state):
 
 @app.route("/", methods=["GET", "POST"])
 def home():
-    global conversation_state
-    stage = conversation_state["stage"]
-
     owner_id, owner_created = get_or_create_owner_id()
-    conversation_state["owner_id"] = owner_id
+    conversation_state = get_conversation_state(owner_id)
+    stage = conversation_state["stage"]
 
     if request.method == "POST":
         user_input = request.form.get("user_input", "").strip()
@@ -403,6 +444,7 @@ def home():
         if should_offer_phase5_consent(user_input, conversation_state):
             conversation_state["phase5_offer_shown"] = True
             append_to_log(
+                conversation_state,
                 speaker="system",
                 content="AI-assisted reasoning is available with consent.",
                 content_type="consent_offer",
@@ -413,6 +455,7 @@ def home():
 
         if should_explain_phase5_limits(user_input, conversation_state):
             append_to_log(
+                conversation_state,
                 speaker="system",
                 content="Reflection-only mode is active. Analysis is disabled.",
                 content_type="consent_limits",
@@ -435,13 +478,14 @@ def home():
 
         if user_input:
             append_to_log(
+                conversation_state,
                 speaker="user",
                 content=user_input,
                 content_type="user_response",
                 phase=conversation_state["stage"]
             )
 
-            debug_log("USER INPUT", {
+            debug_log(conversation_state, "USER INPUT", {
                 "stage": conversation_state["stage"],
                 "text": user_input,
                 "followup_active": bool(conversation_state["followup"])
@@ -453,7 +497,7 @@ def home():
                 conversation_state["followup"] = None
                 conversation_state["stage"] += 1
 
-                debug_log("FOLLOW-UP ANSWER STORED", {
+                debug_log(conversation_state, "FOLLOW-UP ANSWER STORED", {
                     "answer": user_input,
                     "next_stage": conversation_state["stage"]
                 })
@@ -482,6 +526,7 @@ def home():
 
                         # 2️⃣ Log follow-up ONCE
                         append_to_log(
+                            conversation_state,
                             speaker="system",
                             content=conversation_state["followup"],
                             content_type="followup_question",
@@ -493,7 +538,7 @@ def home():
                             conversation_state["signal_escalated"]["support_seeking"] = True
 
                     else:
-                        debug_log("SUPPORT SIGNAL OBSERVED (NO ESCALATION)", {
+                        debug_log(conversation_state, "SUPPORT SIGNAL OBSERVED (NO ESCALATION)", {
                             "count": count,
                             "reason": "already_escalated"
                         })
@@ -503,7 +548,7 @@ def home():
                     if conversation_state["followup"] is None:
                         conversation_state["stage"] += 1
 
-                    debug_log("SUPPORT SIGNAL FIRED", {
+                    debug_log(conversation_state, "SUPPORT SIGNAL FIRED", {
                         "signal": SUPPORT_SIGNAL["id"],
                         "details": debug_info
                     })
@@ -511,11 +556,11 @@ def home():
                 else:
                     conversation_state["stage"] += 1
 
-                    debug_log("SUPPORT SIGNAL NOT FIRED", {
+                    debug_log(conversation_state, "SUPPORT SIGNAL NOT FIRED", {
                         "signal": SUPPORT_SIGNAL["id"],
                         "details": debug_info
                     })
-            debug_log("STATE SUMMARY", {
+            debug_log(conversation_state, "STATE SUMMARY", {
                 "stage": conversation_state["stage"],
                 "followup_active": bool(conversation_state["followup"]),
                 "support_count": conversation_state["signal_counts"]["support_seeking"],
@@ -532,6 +577,7 @@ def home():
         # ----- Log question ONCE -----
         if stage not in conversation_state["questions_logged"]:
             append_to_log(
+                conversation_state,
                 speaker="system",
                 content=question,
                 content_type="question",
@@ -570,7 +616,7 @@ def home():
 
     )
     print(conversation_state["conversation_log"])
-    debug_log("SESSION INTERPRETATION", {
+    debug_log(conversation_state, "SESSION INTERPRETATION", {
         "signal_counts": conversation_state["signal_counts"],
         "escalations": conversation_state["signal_escalated"],
         "user_feedback": conversation_state["feedback"]
@@ -581,7 +627,8 @@ def home():
     return attach_owner_cookie(resp, owner_id, owner_created)
 @app.route("/feedback", methods=["POST"])
 def feedback():
-    global conversation_state
+    owner_id, owner_created = get_or_create_owner_id()
+    conversation_state = get_conversation_state(owner_id)
 
     feedback_value = request.form.get("feedback")
     feedback_detail = request.form.get("feedback_detail")
@@ -613,20 +660,13 @@ def feedback():
         },
     )
 
-    debug_log("USER FEEDBACK RECEIVED", {
+    debug_log(conversation_state, "USER FEEDBACK RECEIVED", {
         "rating": feedback_value,
         "interpretation": interpretation,
         "detail": feedback_detail,
         "signal_counts": conversation_state["signal_counts"],
         "signal_escalated": conversation_state["signal_escalated"]
     })
-
-    owner_id = conversation_state.get("owner_id")
-    if not owner_id:
-        owner_id, owner_created = get_or_create_owner_id()
-    else:
-        owner_created = False
-    conversation_state["owner_id"] = owner_id
 
     resp = make_response(render_template("feedback_thanks.html"))
     return attach_owner_cookie(resp, owner_id, owner_created)
@@ -746,34 +786,8 @@ def decline_memory_proposal(proposal_id):
 
 @app.route("/reset")
 def reset():
-    global conversation_state
     owner_id, owner_created = get_or_create_owner_id()
-    conversation_state = {
-        "session_id": str(uuid.uuid4()),
-        "owner_id": owner_id,
-        "stage": 1,
-        "responses": {},
-        "questions_logged": set(),
-        "followup": None,
-        "followup_answers": None,
-        "conversation_log": [],
-        "signal_counts": {
-            "support_seeking": 0,
-            "overwhelmed": 0,
-            "systems_thinking": 0,
-            "exploration_first": 0
-        },
-        "signal_escalated": {
-            "support_seeking": False
-        },
-        "feedback": {
-            "rating": "...",
-            "detail": "..."
-        },
-        "phase5_consent_token": None,
-        "phase5_offer_shown": False,
-        "proposals_emitted": False
-    }
+    reset_conversation_state(owner_id)
 
     resp = make_response(redirect(url_for("home")))
     return attach_owner_cookie(resp, owner_id, owner_created)

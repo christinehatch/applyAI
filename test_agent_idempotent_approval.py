@@ -15,7 +15,8 @@ def run_test():
 
     # Force summary + get proposals
     with app.app_context():
-        from app import generate_summary, conversation_state
+        from app import generate_summary, get_conversation_state, OWNER_COOKIE_NAME
+        conversation_state = get_conversation_state(client.get_cookie(OWNER_COOKIE_NAME).value)
         from memory.storage import load_proposals, load_memory
 
         generate_summary(
