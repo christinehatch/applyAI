@@ -2,8 +2,8 @@
 
 TEST_RESPONSES = {
     1: "The project seems to be asking for a system that reduces cognitive load by making navigation playful and predictable, rather than optimized or fast.",
-    2: "I would start by identifying emotional friction points first, then map features to moments of stress or confusion.",
-    3: "The biggest uncertainty is balancing structure with flexibility without overwhelming the user.",
-    4: "I like exploring ideas before locking anything down, even if that means circling for a while."
+    2: "I tend to explore several directions without committing to structure until I understand the space.",
+    3: "I’m not sure how to approach this yet — I’d want to see examples or have someone walk me through a first version.",
+    4: "I tend to explore several directions without committing to structure until I understand the space."
 }
 

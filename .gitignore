@@ -27,3 +27,4 @@ memory/owners/
 # -----------------------------
 test_run_output.json
 test_run_output_*.json
+test_run_*_output.json

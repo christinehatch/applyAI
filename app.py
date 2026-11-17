@@ -689,6 +689,10 @@ def approve_memory_proposal(proposal_id):
     if not p:
         return f"Proposal {proposal_id} not found for this owner", 404
 
+    # Idempotency: only pending proposals can be decided. Replays are no-ops.
+    if p.get("decision") != "pending":
+        return redirect(url_for("view_memory_proposals"))
+
     text = (p.get("proposed_text") or "").strip()
 
     # 🔒 Phase 5.4 invariant enforcement
@@ -723,9 +727,13 @@ def decline_memory_proposal(proposal_id):
     from memory.storage import load_proposals, save_proposals
     proposals = load_proposals(owner_id)
 
-    p = next((p for p in proposals if p["proposal_id"] == proposal_id), None)
+    p = next((p for p in proposals if p.get("proposal_id") == proposal_id), None)
     if not p:
         return f"Proposal {proposal_id} not found for this owner", 404
+
+    # Only pending proposals can be decided; never flip an approved one.
+    if p.get("decision") != "pending":
+        return redirect(url_for("view_memory_proposals"))
 
     p["decision"] = "declined"
     p["declined_at"] = time.time()
