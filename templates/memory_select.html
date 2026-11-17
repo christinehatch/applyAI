@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Choose Memory to Use</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      margin: 2rem;
+      background: #fafafa;
+    }
+    .meta {
+      color: #666;
+      font-size: 0.85rem;
+    }
+    .context {
+      border: 1px solid #ddd;
+      background: white;
+      padding: 1rem;
+      margin: 1.5rem 0;
+      border-radius: 6px;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Choose Memory to Use</h1>
+
+<p class="meta">
+  Memory is never used unless you choose it here.
+  <br>
+  Your choice lasts for this conversation only and is not saved.
+  Starting over clears it.
+</p>
+
+{% if not memories %}
+  <p>No memory has been saved yet.</p>
+{% else %}
+  <form method="POST" action="{{ url_for('select_memory') }}">
+    {% for item in memories %}
+      <p>
+        <label>
+          <input type="checkbox" name="memory_id" value="{{ item.id }}"
+            {% if item.id in selected_ids %}checked{% endif %}>
+          {{ item.text }}
+        </label>
+      </p>
+    {% endfor %}
+    <button type="submit">Use selected items</button>
+  </form>
+{% endif %}
+
+<div class="context">
+  {% if context.resolved_texts %}
+    <p><em>{{ context.attribution_line }}</em></p>
+    <ul>
+      {% for text in context.resolved_texts %}
+        <li>{{ text }}</li>
+      {% endfor %}
+    </ul>
+    <form method="POST" action="{{ url_for('clear_memory_selection') }}">
+      <button type="submit">Stop using these items</button>
+    </form>
+  {% else %}
+    <p class="meta">No memory is being used in this conversation.</p>
+  {% endif %}
+</div>
+
+<p><a href="{{ url_for('view_memory') }}">← Back to Memory</a></p>
+
+</body>
+</html>

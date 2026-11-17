@@ -21,6 +21,25 @@
           placeholder="Optional: what feels right or off?"></textarea>
          <p><small>Your answer helps refine the summary.</small></p>
     </form>
-    <a href="/reset">Start Over</a>
+    {% if memory_offer_available %}
+    <section style="margin-top: 2rem;">
+        <p><strong>Save anything from this conversation?</strong></p>
+        <p><small>
+            You can review the observations above as memory proposals.
+            Nothing is saved unless you approve each item, and you can
+            forget any saved item later. Skipping this changes nothing else.
+        </small></p>
+        <form method="POST" action="/memory/opt-in">
+            <button type="submit">Review as memory proposals</button>
+        </form>
+    </section>
+    {% elif proposals_emitted %}
+    <p><small>
+        Proposals from this conversation are waiting for your decision:
+        <a href="/memory/proposals">review them</a>.
+    </small></p>
+    {% endif %}
+
+    <p><a href="/memory">What I remember</a> · <a href="/reset">Start Over</a></p>
 </body>
 </html>

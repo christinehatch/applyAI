@@ -13,33 +13,41 @@ from .storage import (
 )
 
 
-def _item_from_dict(data: dict) -> MemoryItem:
-    now = datetime.now(timezone.utc)
+def _parse_ts(value):
+    """
+    Read a stored timestamp.
 
+    v1 records store ISO-8601 strings. v0 records (written by the old
+    approve route) stored Unix floats. Both are read as UTC datetimes.
+    Missing or unreadable values return None; they are never replaced
+    with "now", because that would misreport when memory was created.
+    """
+    if isinstance(value, str):
+        return datetime.fromisoformat(value)
+    if isinstance(value, (int, float)):
+        return datetime.fromtimestamp(value, tz=timezone.utc)
+    return None
+
+
+def _source_type_from_dict(data: dict) -> str:
+    # v1: {"source": {"source_type": ...}}; v0: top-level "source_type".
+    source = data.get("source")
+    if isinstance(source, dict) and source.get("source_type"):
+        return source["source_type"]
+    return data.get("source_type") or "legacy"
+
+
+def _item_from_dict(data: dict) -> MemoryItem:
     return MemoryItem(
         id=data["id"],
         owner_id=data.get("owner_id"),  # legacy-safe
         text=data["text"],
         kind=data.get("kind", "UNKNOWN"),
-        source=MemorySource(
-            source_type=data.get("source", {}).get("source_type", "legacy")
-        ),
-        created_at=(
-            datetime.fromisoformat(data["created_at"])
-            if isinstance(data.get("created_at"), str)
-            else now
-        ),
-        updated_at=(
-            datetime.fromisoformat(data["updated_at"])
-            if isinstance(data.get("updated_at"), str)
-            else now
-        ),
+        source=MemorySource(source_type=_source_type_from_dict(data)),
+        created_at=_parse_ts(data.get("created_at")),
+        updated_at=_parse_ts(data.get("updated_at")),
         status=data.get("status", "active"),
-        deleted_at=(
-            datetime.fromisoformat(data["deleted_at"])
-            if data.get("deleted_at")
-            else None
-        ),
+        deleted_at=_parse_ts(data.get("deleted_at")),
     )
 
 def _item_to_dict(item: MemoryItem) -> dict:
@@ -47,7 +55,7 @@ def _item_to_dict(item: MemoryItem) -> dict:
         "id": item.id,
         "owner_id": item.owner_id,
         "text": item.text,
-        "kind": item.kind,
+        "kind": item.kind.value if hasattr(item.kind, "value") else item.kind,
         "source": {
             "source_type": item.source.source_type,
         },
@@ -96,10 +104,10 @@ class FileBackedMemoryStore:
 
         for d in raw:
             if d["id"] == memory_id:
-                if d["owner_id"] != owner_id:
+                if d.get("owner_id", owner_id) != owner_id:
                     raise MemoryOwnershipError("owner_id mismatch")
 
-                if d["status"] == "deleted":
+                if d.get("status") == "deleted":
                     return  # idempotent
 
                 now = datetime.now(timezone.utc).isoformat()

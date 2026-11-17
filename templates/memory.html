@@ -30,6 +30,9 @@
   Only items you have explicitly approved appear here.
   <br>
   Pending or declined proposals are never shown.
+  <br>
+  Forgetting an item means it is never used again. It does not change
+  anything you saw earlier.
 </p>
 
 {% if not memories %}
@@ -45,14 +48,23 @@
 
         <small>
           Kind: {{ item.kind }}<br>
-          Created: {{ item.created_at.strftime("%Y-%m-%d %H:%M UTC") }}
+          Source: {{ item.source.source_type }}<br>
+          Created:
+          {% if item.created_at %}{{ item.created_at.strftime("%Y-%m-%d %H:%M UTC") }}{% else %}unknown{% endif %}
         </small>
+        <form method="POST" action="/memory/{{ item.id }}/forget" style="margin-top: 0.5rem;">
+          <button type="submit">Forget this</button>
+        </form>
       </li>
     {% endfor %}
   </ul>
 {% endif %}
 
 <p style="margin-top: 2rem;">
+  {% if memories %}
+  <a href="{{ url_for('select_memory') }}">Choose items to use in this conversation →</a>
+  <br>
+  {% endif %}
   <a href="{{ url_for('view_memory_proposals') }}">
     View memory proposals →
   </a>

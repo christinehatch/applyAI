@@ -222,6 +222,27 @@ At minimum, Phase 5.4 should ship with tests for:
 
 ---
 
+## Storage Versions (Migration Strategy)
+
+Memory is stored as `memory/owners/<owner_id>/memory.json`. Records are
+never rewritten in bulk; the reader accepts every version that has existed.
+
+| Version | Written by | `created_at` / `updated_at` / `deleted_at` | Provenance |
+|---|---|---|---|
+| v0 | old approve route (before Phase 5.4 completion) | Unix float seconds | top-level `source_type` |
+| v1 | `FileBackedMemoryStore.create()` (current) | ISO-8601 UTC string | `source: {"source_type": ...}` |
+
+Rules:
+
+* `memory/file_store.py::_item_from_dict` reads both versions. Floats are
+  converted to UTC datetimes; missing timestamps stay `None` (shown as
+  "unknown") and are **never** replaced with the current time.
+* New writes are always v1. A record is only rewritten as a side effect of a
+  user action on that record (for example, forget).
+* Any future v2 adds a reader branch first, then changes the writer.
+
+---
+
 ## Final Invariant (Phase 5.4)
 
 If this is ever false, Phase 5.4 is broken:

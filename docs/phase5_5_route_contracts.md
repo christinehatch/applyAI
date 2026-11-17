@@ -87,7 +87,7 @@ Define how consent-related UI may interact with existing routes without altering
 * Accept user input
 * Advance stages deterministically
 * Log conversation events (internal only)
-* Emit *memory proposals* during summary generation (Phase 5.4)
+* Record reflections for an optional, user-initiated memory offer (proposals are emitted only by `POST /memory/opt-in`)
 
 **Explicitly Forbidden**:
 
@@ -99,31 +99,62 @@ Define how consent-related UI may interact with existing routes without altering
 
 * Conversation must be replayable deterministically
 * No memory creation without `/memory/proposals/*/approve`
+* No proposal creation without `/memory/opt-in`
 
 ---
 
 ## Route: `/summary` (Implicit via `/` completion)
 
+> **Changed in Phase 5.4 completion:** the summary no longer emits proposals.
+> It only records which reflections *could* be proposed. Emission moved to
+> `POST /memory/opt-in` so memory is opt-in and ordered after reflection.
+
 **Purpose**:
 
 * Generate reflective summary text
-* Emit memory proposals (not memory)
+* Record this conversation's reflections in session state (`summary_reflections`)
+* Offer an explicit, skippable "Review as memory proposals" action
 
 **Allowed**:
 
 * Generate reflection language
-* Append proposals via `append_proposal()`
+* Set `summary_ready` and `summary_reflections` in the owner's conversation state
 
 **Explicitly Forbidden**:
 
 * Writing to memory store
-* Editing or deleting proposals
+* Appending, editing, or deleting proposals
+* Pre-selecting or auto-submitting the memory offer
 
 **Invariants**:
 
-* Proposal emission must be idempotent per session
+* Rendering the summary creates no proposals and no memory
+* Re-running summary generation has no storage side effects
+
+---
+
+## Route: `/memory/opt-in` (POST)
+
+**Purpose**:
+
+* Explicit user request to review this conversation's reflections as memory proposals
+
+**Allowed**:
+
+* Append one `SELF_OBSERVATION` proposal per recorded reflection via `append_proposal()`
+* Set `memory_opt_in` and `proposals_emitted` in the owner's conversation state
+
+**Explicitly Forbidden**:
+
+* Writing to memory store
+* Reading or setting `phase5_consent_token` (memory consent is separate from Phase 5 consent)
+* Running before the summary exists
+
+**Invariants**:
+
+* Returns 409 and writes nothing if `summary_ready` is false
+* Idempotent per conversation: a replay creates no duplicate proposals
 * Proposal text must pass `validate_memory_text()` before approval
-* Re-running summary generation must not duplicate proposals
 
 ---
 
@@ -208,6 +239,7 @@ Define how consent-related UI may interact with existing routes without altering
 
 * Mark proposal as declined
 * Store optional decline reason
+* Clear the proposal text (decline must not retain usable text)
 
 **Explicitly Forbidden**:
 
@@ -244,6 +276,43 @@ Define how consent-related UI may interact with existing routes without altering
 
 ---
 
+## Route: `/memory/select` (GET, POST)
+
+**Purpose**:
+
+* Let the user choose which approved memory items may be used in this conversation
+* Show exactly what is in use, with the attribution line
+
+**Allowed**:
+
+* Store selected ids in the owner's conversation state (`selected_memory_ids`)
+* Resolve context only via `build_selected_memory_context()`
+
+**Explicitly Forbidden**:
+
+* Writing selection to disk
+* Selecting ids that are deleted, unknown, or owned by someone else (silently dropped)
+* Pre-selecting items the user has not chosen in this conversation
+
+**Invariants**:
+
+* Empty selection → empty context and no attribution line
+* `build_selected_memory_context()` is the only path by which memory reaches any downstream use
+
+---
+
+## Route: `/memory/select/clear` (POST)
+
+**Purpose**:
+
+* Stop using all selected memory in this conversation
+
+**Invariants**:
+
+* Clears `selected_memory_ids` only; memory items are unchanged
+
+---
+
 ## Route: `/reset`
 
 **Purpose**:
@@ -252,7 +321,7 @@ Define how consent-related UI may interact with existing routes without altering
 
 **Allowed**:
 
-* Clear in-memory conversation state
+* Clear the caller's in-memory conversation state, including memory selection
 
 **Explicitly Forbidden**:
 
@@ -262,6 +331,7 @@ Define how consent-related UI may interact with existing routes without altering
 **Invariants**:
 
 * Memory persists across resets
+* Other owners' conversations are untouched
 
 ---
 

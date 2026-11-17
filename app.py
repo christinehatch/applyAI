@@ -182,7 +182,15 @@ from reflections import (
 from phase5.request import LLMRequest
 from phase5.roles import ParticipantRole, IntelligenceMode
 from phase5.boundary import LLMBoundary
-from phase5.memory import validate_memory_text
+from phase5.memory import (
+    MemoryItem,
+    MemoryKind,
+    MemoryNotFoundError,
+    MemorySelectionContextBuilder,
+    MemorySource,
+    MemoryValidationError,
+    validate_memory_text,
+)
 from phase5.consent import get_consent_state, ConsentState
 from datetime import datetime, timezone
 from memory.file_store import FileBackedMemoryStore
@@ -271,7 +279,13 @@ def new_conversation_state(owner_id: str) -> dict:
         },
         "phase5_consent_token": None,
         "phase5_offer_shown": False,
-        "proposals_emitted": False
+        # Phase 5.4 memory. Separate from Phase 5 consent: memory opt-in
+        # never grants or reads phase5_consent_token, and vice versa.
+        "summary_ready": False,
+        "summary_reflections": [],
+        "memory_opt_in": False,
+        "proposals_emitted": False,
+        "selected_memory_ids": [],
     }
 
 
@@ -407,17 +421,11 @@ def generate_summary(responses, conversation_state):
     reflections = collect_reflections(conversation_state)
     summary.extend(reflections)
 
-    # --- Phase 5.4 runtime proposal emission (NO approval) ---
-    owner_id = conversation_state.get("owner_id")
-    if owner_id and not conversation_state.get("proposals_emitted"):
-        for text in reflections:
-            append_proposal(
-                owner_id=owner_id,
-                proposed_text=text,
-                kind="SELF_OBSERVATION",
-                source_type="phase3_reflection",
-            )
-        conversation_state["proposals_emitted"] = True
+    # --- Phase 5.4: summary only *records* what could be proposed ---
+    # No proposals are written here. The user must opt in explicitly via
+    # POST /memory/opt-in, which is only reachable after this point.
+    conversation_state["summary_reflections"] = list(reflections)
+    conversation_state["summary_ready"] = True
     # --- end Phase 5.4 ---
 
     debug_log(conversation_state, "SUMMARY FEEDBACK ALIGNMENT", {
@@ -622,7 +630,13 @@ def home():
     })
 
 
-    resp = make_response(render_template("summary.html", summary=summary))
+    resp = make_response(render_template(
+        "summary.html",
+        summary=summary,
+        memory_offer_available=bool(conversation_state["summary_reflections"])
+        and not conversation_state["proposals_emitted"],
+        proposals_emitted=conversation_state["proposals_emitted"],
+    ))
     return attach_owner_cookie(resp, owner_id, owner_created)
 @app.route("/feedback", methods=["POST"])
 def feedback():
@@ -720,9 +734,8 @@ def view_memory_proposals():
 def approve_memory_proposal(proposal_id):
     owner_id, owner_created = get_or_create_owner_id()
 
-    from memory.storage import load_proposals, save_proposals, load_memory, save_memory
+    from memory.storage import load_proposals, save_proposals
     proposals = load_proposals(owner_id)
-    memory = load_memory(owner_id)
 
     p = next((p for p in proposals if p.get("proposal_id") == proposal_id), None)
     if not p:
@@ -734,26 +747,33 @@ def approve_memory_proposal(proposal_id):
 
     text = (p.get("proposed_text") or "").strip()
 
-    # 🔒 Phase 5.4 invariant enforcement
-    validate_memory_text(text)
+    # 🔒 Phase 5.4 invariant enforcement (proposal stays pending on failure)
+    try:
+        kind = MemoryKind(p.get("kind"))
+    except ValueError:
+        return "This proposal has an unsupported memory kind and cannot be saved.", 400
+    try:
+        validate_memory_text(text)
+    except MemoryValidationError:
+        return "This proposal's wording can't be saved as memory.", 400
 
-    now = time.time()
+    # Server-generated; created_at == updated_at on creation.
+    now = datetime.now(timezone.utc)
 
-    memory.append({
-        "id": str(uuid.uuid4()),
-        "owner_id": owner_id,
-        "text": text,
-        "kind": p.get("kind", "note"),
-        "source_type": p.get("source_type", "assistant"),
-        "status": "active",
-        "created_at": now,
-        "updated_at": now,
-    })
+    FileBackedMemoryStore().create(MemoryItem(
+        id=str(uuid.uuid4()),
+        owner_id=owner_id,
+        text=text,
+        kind=kind,
+        source=MemorySource(source_type=p.get("source_type") or "legacy"),
+        created_at=now,
+        updated_at=now,
+        status="active",
+    ))
 
     p["decision"] = "approved"
-    p["approved_at"] = now
+    p["approved_at"] = now.timestamp()
 
-    save_memory(owner_id, memory)
     save_proposals(owner_id, proposals)
 
     return redirect(url_for("view_memory_proposals"))
@@ -776,11 +796,112 @@ def decline_memory_proposal(proposal_id):
 
     p["decision"] = "declined"
     p["declined_at"] = time.time()
+    # Decline must not retain usable text (Phase 5.4 schema, decline-no-side-effects).
+    p["proposed_text"] = ""
     p["decline_reason"] = request.form.get("reason")  # optional
 
     save_proposals(owner_id, proposals)
 
     return redirect(url_for("view_memory_proposals"))
+
+
+@app.route("/memory/opt-in", methods=["POST"])
+def memory_opt_in():
+    """
+    Phase 5.4 entry: the user explicitly asks to review this conversation's
+    reflections as memory proposals. Only reachable after the summary.
+    Creates proposals only; never memory.
+    """
+    owner_id, owner_created = get_or_create_owner_id()
+    conversation_state = get_conversation_state(owner_id)
+
+    # Phase ordering: proposals only after Phase 3 reflection exists.
+    if not conversation_state["summary_ready"]:
+        return "Memory proposals are only available after the conversation summary.", 409
+
+    # Idempotent: one emission per conversation.
+    if not conversation_state["proposals_emitted"]:
+        for text in conversation_state["summary_reflections"]:
+            append_proposal(
+                owner_id=owner_id,
+                proposed_text=text,
+                kind=MemoryKind.SELF_OBSERVATION.value,
+                source_type="phase3_reflection",
+            )
+        conversation_state["memory_opt_in"] = True
+        conversation_state["proposals_emitted"] = True
+
+    resp = make_response(redirect(url_for("view_memory_proposals")))
+    return attach_owner_cookie(resp, owner_id, owner_created)
+
+
+@app.route("/memory/<memory_id>/forget", methods=["POST"])
+def forget_memory(memory_id):
+    """Soft-delete one approved memory item. Deleted items are never used again."""
+    owner_id, owner_created = get_or_create_owner_id()
+
+    try:
+        FileBackedMemoryStore().delete(owner_id, memory_id)
+    except MemoryNotFoundError:
+        return f"Memory {memory_id} not found for this owner", 404
+
+    conversation_state = get_conversation_state(owner_id)
+    conversation_state["selected_memory_ids"] = [
+        mid for mid in conversation_state["selected_memory_ids"] if mid != memory_id
+    ]
+
+    resp = make_response(redirect(url_for("view_memory")))
+    return attach_owner_cookie(resp, owner_id, owner_created)
+
+
+def build_selected_memory_context(owner_id: str, conversation_state: dict):
+    """
+    The ONLY way memory may reach any downstream use (prompt building,
+    Phase 6). Resolves just the user's explicitly selected, still-active
+    items for this owner, and carries the attribution line.
+    """
+    return MemorySelectionContextBuilder(FileBackedMemoryStore()).build(
+        owner_id=owner_id,
+        selected_memory_ids=conversation_state["selected_memory_ids"],
+    )
+
+
+@app.route("/memory/select", methods=["GET", "POST"])
+def select_memory():
+    """
+    Let the user choose which approved memory items may be used in this
+    conversation. Selection is session-only and never written to disk.
+    """
+    owner_id, owner_created = get_or_create_owner_id()
+    conversation_state = get_conversation_state(owner_id)
+    store = FileBackedMemoryStore()
+
+    if request.method == "POST":
+        active_ids = {item.id for item in store.list(owner_id)}
+        requested = request.form.getlist("memory_id")
+        # Keep only this owner's active items, in the order given, no duplicates.
+        conversation_state["selected_memory_ids"] = list(
+            dict.fromkeys(mid for mid in requested if mid in active_ids)
+        )
+        resp = make_response(redirect(url_for("select_memory")))
+        return attach_owner_cookie(resp, owner_id, owner_created)
+
+    context = build_selected_memory_context(owner_id, conversation_state)
+    resp = make_response(render_template(
+        "memory_select.html",
+        memories=store.list(owner_id),
+        selected_ids=set(conversation_state["selected_memory_ids"]),
+        context=context,
+    ))
+    return attach_owner_cookie(resp, owner_id, owner_created)
+
+
+@app.route("/memory/select/clear", methods=["POST"])
+def clear_memory_selection():
+    owner_id, owner_created = get_or_create_owner_id()
+    get_conversation_state(owner_id)["selected_memory_ids"] = []
+    resp = make_response(redirect(url_for("select_memory")))
+    return attach_owner_cookie(resp, owner_id, owner_created)
 
 
 @app.route("/reset")

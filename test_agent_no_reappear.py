@@ -20,14 +20,11 @@ def run_test():
 
     # ---- Force summary & get proposals ----
     with app.app_context():
-        from app import generate_summary, get_conversation_state, OWNER_COOKIE_NAME
+        from app import get_conversation_state, OWNER_COOKIE_NAME
         conversation_state = get_conversation_state(client.get_cookie(OWNER_COOKIE_NAME).value)
         from memory.storage import load_proposals
 
-        generate_summary(
-            conversation_state["responses"],
-            conversation_state
-        )
+        client.post("/memory/opt-in")  # explicit Phase 5.4 opt-in
 
         owner_id = conversation_state.get("owner_id")
         proposals = load_proposals(owner_id)
