@@ -1,6 +1,10 @@
 > ⚠️ This document intentionally describes future phases.
-> It exists to prevent accidental scope creep while implementing Phase 5.4.
-> Nothing in Phase 6 should be implemented until Phase 5.4 is complete and hardened.
+> It was written to prevent scope creep while implementing Phase 5.4.
+>
+> **Update 2026-11-17:** Phase 5.4 is complete (`phase5_4_checklist.md`) and
+> Phase 6.0 is opened with a narrow first increment. See
+> `PHASE_6_OPENING_DECLARATION.md` and `phase6_route_contracts.md`.
+> Anything in §4–§6 not named in that declaration is still not open.
 
 
 # System Roadmap & Phase Design Notes
@@ -44,7 +48,7 @@ Phase 5.3 is considered *ethically closed and stable*.
 
 ---
 
-## 2. Phase 5.4 — Longitudinal Awareness (🔒 Next, High-Risk)
+## 2. Phase 5.4 — Longitudinal Awareness (✅ Completed 2026-11-17)
 
 **Core question:**
 
@@ -75,11 +79,17 @@ Phase 5.4 is **only about persistence**, not application.
 
 Phase 5.4 must be completed and hardened before any applied or career-related functionality is enabled.
 
+**Status:** Completed. Opt-in proposals, approve/decline, ledger, forget, and
+session-only selection are implemented and tested. See `phase5_4_checklist.md`.
+
 ---
 
-## 3. Phase 6 — Applied Exploration (🚧 Future Phase, Frozen Conceptually)
+## 3. Phase 6 — Applied Exploration (🟢 Opened: Phase 6.0 Path A via role handoff)
 
-Phase 6 is intentionally **not implemented yet**. This section exists to preserve the design so Phase 5.4 does not block it.
+Phase 6.0's first increment is opened by `PHASE_6_OPENING_DECLARATION.md`:
+Path A only, entered through a user-confirmed role handoff from letsA(ppl)I,
+deterministic, no LLM. Discovery Entry (§4), Path B, and Career Formatting
+Mode (§6) remain closed.
 
 ### Phase 6 Core Question
 
@@ -218,9 +228,9 @@ In all cases, the invariant holds:
 
 Before touching Phase 6:
 
-* Phase 5.4 must be implemented, tested, and hardened
-* Memory must be safe, visible, and revocable
-* No applied logic should exist behind feature flags
+* Phase 5.4 must be implemented, tested, and hardened ✅
+* Memory must be safe, visible, and revocable ✅
+* No applied logic should exist behind feature flags ✅ (Phase 6 code merges only when complete; see declaration §6)
 
 This document exists so none of these ideas are lost while Phase 5.4 is secured.
 

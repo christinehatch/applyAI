@@ -50,13 +50,19 @@ By design.
 - **Phase 1** — Cognitive exploration MVP  
 - **Phase 2** — Adaptive reflection (rule-based)
 - **Phase 3** — Reflective pattern synthesis *(completed)*
-- **Phase 4** — Policy before capability *(current)*
-- **Phase 5** — Guarded learning & AI integration *(defined, not yet implemented)*
+- **Phase 4** — Policy before capability *(completed)*
+- **Phase 5** — Guarded learning & AI integration *(5.3 and 5.4 completed; 5.5 consent UI in progress)*
+- **Phase 6** — Applied exploration *(6.0 opened: Path A via role handoff from letsA(ppl)I)*
 
 Detailed documentation:
-- [`PHASE_3_REFLECTIVE_SYNTHESIS.md`] (docs/PHASE_3_REFLECTIVE_SYNTHESIS.md)
-- [`PHASE_4_POLICY.md`](docs/PHASE_4_POLICY.md)
-- [`PHASE_4_CAPABILITIES.md`](docs/PHASE_4_CAPABILITIES.md)
+- [`PHASE_3_REFLECTIVE_SYNTHESIS.md`](PHASE_3_REFLECTIVE_SYNTHESIS.md)
+- [`PHASE_4_POLICY.md`](PHASE_4_POLICY.md)
+- [`PHASE_4_CAPABILITIES.md`](PHASE_4_CAPABILITIES.md)
+- [`phase-roadmap.md`](phase-roadmap.md) — phase design notes, Phase 6 design
+- [`phase5_4_checklist.md`](phase5_4_checklist.md) — memory (completed)
+- [`phase5_5_route_contracts.md`](phase5_5_route_contracts.md) — frozen routes and global invariants
+- [`PHASE_6_OPENING_DECLARATION.md`](PHASE_6_OPENING_DECLARATION.md) — what Phase 6.0 opens, and what it doesn't
+- [`phase6_route_contracts.md`](phase6_route_contracts.md) — `/explore` routes
 
 ---
 

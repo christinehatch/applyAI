@@ -332,6 +332,7 @@ Define how consent-related UI may interact with existing routes without altering
 
 * Memory persists across resets
 * Other owners' conversations are untouched
+* Phase 6 role context (`role_context`) is cleared, since the state is replaced
 
 ---
 
