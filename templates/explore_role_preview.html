@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>A Role Was Sent to applyAI</title>
+  {% include "_explore_style.html" %}
+</head>
+<body>
+
+<h1>A role was sent from letsA(ppl)I</h1>
+
+<div class="banner">
+  <strong>{{ envelope.framing }}</strong>
+  <p class="meta" style="margin-bottom: 0;">
+    Nothing is attached to your conversation until you choose
+    “Explore this role”. Once it's here, letsA(ppl)I can't update or withdraw it,
+    but you can clear it at any time.
+  </p>
+</div>
+
+{% include "_explore_role_body.html" %}
+
+{% if envelope.role.project_opportunities %}
+<div class="panel">
+  <div class="panel-label">Project ideas included with this role</div>
+  <ul>
+    {% for p in envelope.role.project_opportunities %}
+      <li><strong>{{ p.capability_surface }}</strong> — {{ p.description }}</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<div class="actions">
+  <form method="POST" action="{{ url_for('accept_role_handoff', token=token) }}">
+    <button type="submit">Explore this role</button>
+  </form>
+  <form method="POST" action="{{ url_for('discard_role_handoff', token=token) }}">
+    <button type="submit">Not now</button>
+  </form>
+</div>
+
+</body>
+</html>

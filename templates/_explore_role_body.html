@@ -1,0 +1,36 @@
+{# Role content from the envelope, in the posting's own words. Plain text only (autoescaped). #}
+<div class="panel">
+  <div class="panel-label">The role, in the posting's words</div>
+  <h2>{{ envelope.source.title }} · {{ envelope.source.company }}</h2>
+  <p>{{ envelope.role.summary_text }}</p>
+  <p class="meta">
+    Source: <a href="{{ envelope.source.job_url }}" target="_blank" rel="noopener noreferrer">original posting</a>
+    · Read by letsA(ppl)I on {{ envelope.source.interpreted_at }}
+    · Interpretation confidence: {{ envelope.role.confidence }}
+  </p>
+  <p class="meta">{{ envelope.role.structural_notes }}</p>
+</div>
+
+{% if envelope.role.explicit_requirements %}
+<div class="panel">
+  <div class="panel-label">What the posting lists</div>
+  <ul>
+    {% for r in envelope.role.explicit_requirements %}
+      <li>{{ r.requirement_text }} <span class="modality">{{ r.modality }}</span></li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<div class="panel">
+  <div class="panel-label">Capabilities the posting emphasizes</div>
+  {% for c in envelope.role.capability_emphasis %}
+    <div class="item">
+      <strong>{{ c.domain_label }}</strong>
+      <div>{{ c.description }}</div>
+      {% for quote in c.evidence %}
+        <blockquote>“{{ quote }}”</blockquote>
+      {% endfor %}
+    </div>
+  {% endfor %}
+</div>

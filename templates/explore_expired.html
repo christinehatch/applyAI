@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Handoff Expired</title>
+  {% include "_explore_style.html" %}
+</head>
+<body>
+  <h1>Handoff not available</h1>
+  <p>{{ message }}</p>
+  <p class="meta">Handoffs are kept for 5 minutes and can be used once.</p>
+  <p><a href="{{ url_for('home') }}">Back to the conversation</a></p>
+</body>
+</html>

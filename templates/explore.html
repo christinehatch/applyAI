@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Exploring a Role</title>
+  {% include "_explore_style.html" %}
+</head>
+<body>
+
+{% if not envelope %}
+
+  <h1>No role is loaded</h1>
+  <p>
+    Roles are sent here from letsA(ppl)I, one at a time, when you choose to.
+    Nothing is loaded right now.
+  </p>
+  <p><a href="{{ url_for('home') }}">Back to the conversation</a> · <a href="{{ url_for('view_memory') }}">What I remember</a></p>
+
+{% else %}
+
+  <div class="banner">
+    <strong>Exploring a role:</strong> {{ envelope.source.title }} · {{ envelope.source.company }}
+    <br>
+    <em>{{ envelope.framing }}</em>
+    <br>
+    <form method="POST" action="{{ url_for('clear_role_context') }}" style="margin-top: 0.5rem;">
+      <button type="submit">Clear role context</button>
+    </form>
+  </div>
+
+  {% include "_explore_role_body.html" %}
+
+  <div class="panel">
+    <div class="panel-label">Ways to show it</div>
+    {% if envelope.role.project_opportunities %}
+      <p class="meta">
+        These ideas come from the posting. They are starting points for
+        exploration, not requirements or credentials.
+      </p>
+      {% for p in envelope.role.project_opportunities %}
+        <div class="item">
+          <strong>{{ p.capability_surface }}</strong>
+          <div>One way to show this would be: {{ p.description }}</div>
+          {% for quote in p.evidence %}
+            <blockquote>“{{ quote }}”</blockquote>
+          {% endfor %}
+        </div>
+      {% endfor %}
+    {% else %}
+      <p class="meta">No project ideas came with this role.</p>
+    {% endif %}
+  </div>
+
+  <div class="panel">
+    <div class="panel-label">Limits</div>
+    <p>
+      No project guarantees an interview, an offer, or any outcome.
+      This page describes one posting; it can't say how a hiring team will read your work.
+    </p>
+  </div>
+
+  <div class="panel">
+    <div class="panel-label">Your selected materials</div>
+    {% if memory_context.resolved_texts %}
+      <p><em>{{ memory_context.attribution_line }}</em></p>
+      <ul>
+        {% for text in memory_context.resolved_texts %}
+          <li>{{ text }}</li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="meta">No memory is being used. Your saved items stay out of this unless you choose them.</p>
+    {% endif %}
+    <p class="meta"><a href="{{ url_for('select_memory') }}">Choose items to use</a></p>
+  </div>
+
+  <p><a href="{{ url_for('home') }}">Back to the conversation</a></p>
+
+{% endif %}
+
+</body>
+</html>

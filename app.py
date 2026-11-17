@@ -195,6 +195,12 @@ from phase5.consent import get_consent_state, ConsentState
 from datetime import datetime, timezone
 from memory.file_store import FileBackedMemoryStore
 from memory.storage import append_proposal
+from phase6.handoff import (
+    HandoffTooLargeError,
+    HandoffValidationError,
+    PendingHandoffStore,
+    parse_envelope,
+)
 import threading
 import time
 import uuid
@@ -286,6 +292,9 @@ def new_conversation_state(owner_id: str) -> dict:
         "memory_opt_in": False,
         "proposals_emitted": False,
         "selected_memory_ids": [],
+        # Phase 6.0: validated role envelope the user accepted, or None.
+        # Session-only; never written to disk.
+        "role_context": None,
     }
 
 
@@ -901,6 +910,105 @@ def clear_memory_selection():
     owner_id, owner_created = get_or_create_owner_id()
     get_conversation_state(owner_id)["selected_memory_ids"] = []
     resp = make_response(redirect(url_for("select_memory")))
+    return attach_owner_cookie(resp, owner_id, owner_created)
+
+
+# ============================================================
+# Phase 6.0 — Applied Exploration (Path A via role handoff)
+# ============================================================
+# Contracts: docs/phase6_route_contracts.md
+# Scope:     docs/PHASE_6_OPENING_DECLARATION.md
+#
+# Nothing here writes to memory, proposals, or disk. Role content is
+# untrusted plain text, rendered autoescaped, and never combined with
+# the user's memory.
+
+pending_handoffs = PendingHandoffStore()
+
+HANDOFF_EXPIRED_MESSAGE = "This handoff expired; send it again from letsA(ppl)I."
+
+
+def _handoff_expired_response():
+    return make_response(render_template("explore_expired.html", message=HANDOFF_EXPIRED_MESSAGE), 404)
+
+
+@app.route("/explore/role", methods=["POST"])
+def receive_role_handoff():
+    """Cross-site intake. Validates and parks; binds nothing to anyone."""
+    try:
+        envelope = parse_envelope(request.form.get("envelope"))
+    except HandoffTooLargeError as e:
+        return str(e), 413, {"Content-Type": "text/plain; charset=utf-8"}
+    except HandoffValidationError as e:
+        return f"This role couldn't be received: {e}", 400, {"Content-Type": "text/plain; charset=utf-8"}
+
+    token = pending_handoffs.park(envelope)
+    logger.event(
+        session_id="phase6-handoff",
+        event_type="phase6.handoff_received",
+        payload={
+            "handoff_id": envelope["handoff_id"],
+            "received_at": datetime.now(timezone.utc).isoformat(),
+        },
+    )
+    return redirect(url_for("preview_role_handoff", token=token), code=303)
+
+
+@app.route("/explore/role/<token>")
+def preview_role_handoff(token):
+    """Read-only preview. Viewing is not consent; nothing is bound."""
+    envelope = pending_handoffs.peek(token)
+    if envelope is None:
+        return _handoff_expired_response()
+
+    owner_id, owner_created = get_or_create_owner_id()
+    resp = make_response(render_template("explore_role_preview.html", envelope=envelope, token=token))
+    return attach_owner_cookie(resp, owner_id, owner_created)
+
+
+@app.route("/explore/role/<token>/accept", methods=["POST"])
+def accept_role_handoff(token):
+    """Explicit confirmation: bind the role to this owner's conversation."""
+    envelope = pending_handoffs.take(token)
+    if envelope is None:
+        return _handoff_expired_response()
+
+    owner_id, owner_created = get_or_create_owner_id()
+    get_conversation_state(owner_id)["role_context"] = envelope
+
+    resp = make_response(redirect(url_for("explore"), code=303))
+    return attach_owner_cookie(resp, owner_id, owner_created)
+
+
+@app.route("/explore/role/<token>/discard", methods=["POST"])
+def discard_role_handoff(token):
+    pending_handoffs.discard(token)
+    return redirect(url_for("home"), code=303)
+
+
+@app.route("/explore")
+def explore():
+    """Path A walkthrough for the active role. Deterministic; no LLM."""
+    owner_id, owner_created = get_or_create_owner_id()
+    conversation_state = get_conversation_state(owner_id)
+    role_context = conversation_state["role_context"]
+
+    memory_context = build_selected_memory_context(owner_id, conversation_state)
+
+    resp = make_response(render_template(
+        "explore.html",
+        envelope=role_context,
+        memory_context=memory_context,
+    ))
+    return attach_owner_cookie(resp, owner_id, owner_created)
+
+
+@app.route("/explore/role/clear", methods=["POST"])
+def clear_role_context():
+    """Leave Phase 6 mode. Memory, selection, and conversation are untouched."""
+    owner_id, owner_created = get_or_create_owner_id()
+    get_conversation_state(owner_id)["role_context"] = None
+    resp = make_response(redirect(url_for("home"), code=303))
     return attach_owner_cookie(resp, owner_id, owner_created)
 
 

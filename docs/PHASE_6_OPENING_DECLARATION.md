@@ -142,11 +142,11 @@ Roadmap §10 forbids applied logic behind feature flags. Therefore:
 
 Phase 6.0 is complete when:
 
-- [ ] `phase6_route_contracts.md` routes are implemented as written
-- [ ] Every route has tests, including the rejection cases in the handoff contract §9
-- [ ] Language guard test: Path A pages contain no fit/score/readiness/identity phrases
-- [ ] Tests prove Phase 6 writes nothing to memory or proposals
-- [ ] Tests prove role context is per owner and cleared by "Clear role context" and `/reset`
+- [x] `phase6_route_contracts.md` routes are implemented as written (`app.py`, `phase6/handoff.py`)
+- [x] Every route has tests, including the rejection cases in the handoff contract §9 (`tests/test_phase6_explore.py`)
+- [x] Language guard test: Path A pages contain no fit/score/readiness/identity phrases
+- [x] Tests prove Phase 6 writes nothing to memory or proposals
+- [x] Tests prove role context is per owner and cleared by "Clear role context" and `/reset`
 - [ ] An end-to-end run sends a real role from letsA(ppl)I and walks it in applyAI
 - [ ] `phase-roadmap.md` updated with what Phase 6.0 learned
 
